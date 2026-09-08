@@ -90,5 +90,5 @@ const channel=admin.channel('hours-server-state').on('postgres_changes',{event:'
 }).subscribe();
 
 app.use(express.static('public',{index:'index.html',extensions:['html']}));
-app.get('*',(req,res)=>res.sendFile(process.cwd()+'/public/index.html'));
+app.use((req,res)=>res.sendFile(process.cwd()+'/public/index.html'));
 app.listen(PORT,()=>console.log(`HOURS online on :${PORT}`));
