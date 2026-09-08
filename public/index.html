@@ -151,7 +151,7 @@ $$(".nav button").forEach(b=>b.onclick=()=>{currentPage=b.dataset.page;render()}
 async function requestMagicLink(){
   const email=$("#authEmail").value.trim().toLowerCase();
   $("#authError").textContent="";
-  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
     $("#authError").textContent="Enter a valid email address.";
     return;
   }
