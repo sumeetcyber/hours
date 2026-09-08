@@ -93,11 +93,13 @@ label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
 <body>
 <div id="authGate"><div class="authBox">
   <h1>hours.</h1><p>Log what you actually did. Your data syncs to your account.</p>
-  <div id="authStepEmail">\label>Email</label><input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
-  <button class="primary" style="margin-top:14px;width:100%" onclick="requestOTP()">SEND OTP</button></div>
-  <div id="authStepOTP" style="display:none"><label>6-digit OTP</label><input id="authOTP" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
-  <button class="primary" style="margin-top:14px;width:100%" onclick="verifyOTP()">VERIFY & ENTER</button><button class="ghost" style="margin-top:8px;width:100%" onclick="backToEmail()">Use another email</button></div>
-  <div class="authError" id="authError"></div><div class="authStatus" id="authStatus">Server-authenticated · no local data store</div>
+  <div id="authStepEmail">
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <button class="primary" style="margin-top:14px;width:100%" onclick="requestMagicLink()">EMAIL ME A LOGIN LINK</button>
+  </div>
+  <div class="authError" id="authError"></div>
+  <div class="authStatus" id="authStatus">Server-authenticated · no local data store</div>
 </div></div>
 
 <div class="app">
@@ -146,21 +148,65 @@ $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()})
 
 $$(".nav button").forEach(b=>b.onclick=()=>{currentPage=b.dataset.page;render()});
 
-async function requestOTP(){
+async function requestMagicLink(){
   const email=$("#authEmail").value.trim().toLowerCase();
   $("#authError").textContent="";
-  try{const r=await fetch("/api/auth/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not send OTP");$("#authStepEmail").style.display="none";$("#authStepOTP").style.display="block";$("#authStatus").textContent="OTP sent. Verify it on the server.";$("#authOTP").focus()}catch(e){$("#authError").textContent=e.message}}
-async function verifyOTP(){
-  const email=$("#authEmail").value.trim().toLowerCase(), token=$("#authOTP").value.trim();
-  $("#authError").textContent="";
-  try{const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,token})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Invalid OTP");await boot();}catch(e){$("#authError").textContent=e.message}}
-function backToEmail(){$("#authStepOTP").style.display="none";$(("#authStepEmail")).style.display="block";$("#authStatus").textContent="Server-authenticated · no local data store"}
+  if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){
+    $("#authError").textContent="Enter a valid email address.";
+    return;
+  }
+  try{
+    const r=await fetch("/api/auth/send-magic-link",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({email})
+    });
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"Could not send login link");
+    $("#authStatus").textContent="Login link sent. Check your email.";
+  }catch(e){
+    $("#authError").textContent=e.message;
+  }
+}
+async function finishMagicLink(){
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+  const access_token=hash.get("access_token");
+  const refresh_token=hash.get("refresh_token");
+  if(!access_token||!refresh_token)return false;
+  $("#authStatus").textContent="Signing you in…";
+  try{
+    const r=await fetch("/api/auth/session",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      credentials:"include",
+      body:JSON.stringify({access_token,refresh_token})
+    });
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"Could not complete sign-in");
+    history.replaceState(null,"",location.pathname+location.search);
+    return true;
+  }catch(e){
+    history.replaceState(null,"",location.pathname+location.search);
+    $("#authError").textContent=e.message;
+    return false;
+  }
+}
 function showAuth(){$("#authGate").style.display="grid";$(".app").style.display="none"}
 function hideAuth(){$("#authGate").style.display="none";$(".app").style.display=""}
 async function boot(){
-  try{const r=await fetch("/api/auth/me",{credentials:"include"});if(!r.ok){showAuth();return}
-    const st=await fetch("/api/state",{credentials:"include"});if(!st.ok)throw new Error("state unavailable");state=await st.json();hideAuth();render();connectRealtime();
-  }catch(e){console.error(e);showAuth();$("#authError").textContent="Could not connect to the server."}
+  try{
+    await finishMagicLink();
+    const r=await fetch("/api/auth/me",{credentials:"include"});
+    if(!r.ok){showAuth();return}
+    const st=await fetch("/api/state",{credentials:"include"});
+    if(!st.ok)throw new Error("state unavailable");
+    state=await st.json();
+    hideAuth();render();connectRealtime();
+  }catch(e){
+    console.error(e);
+    showAuth();
+    $("#authError").textContent="Could not connect to the server.";
+  }
 }
 function connectRealtime(){
   if(window.__hoursEvents)window.__hoursEvents.close();
