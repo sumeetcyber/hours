@@ -67,23 +67,6 @@ The browser still necessarily has temporary UI state while the page is running; 
 - Helmet security headers and API rate limiting are enabled.
 - Realtime updates are relayed through the server.
 
-### Important: secrets
-
-**Never commit `.env` or any real Supabase secret to GitHub.**
-
-Keep secrets only in your hosting provider's environment variables.
-
-Recommended `.gitignore` entries:
-
-```gitignore
-.env
-.env.*
-!.env.example
-node_modules/
-```
-
-If a real secret has already been committed, rotate/revoke it before relying on deleting the file. Removing a file from the latest commit does not make an exposed credential safe.
-
 ## Project structure
 
 ```text
