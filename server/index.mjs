@@ -192,9 +192,8 @@ app.post('/api/auth/register/send-otp', async (req, res) => {
   const password = String(req.body.password || '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid email' });
   if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
-  const existing = await admin.auth.admin.getUserByEmail(email);
-  if (existing.data?.user) return res.status(409).json({ error: 'an account with this email already exists' });
-  const r = await auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+
+  const r = await auth.auth.signUp({ email, password });
   if (r.error) return res.status(400).json({ error: r.error.message });
   res.json({ ok: true });
 });
@@ -202,45 +201,17 @@ app.post('/api/auth/register/send-otp', async (req, res) => {
 app.post('/api/auth/register/verify-otp', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const token = String(req.body.token || '').trim();
-  const password = String(req.body.password || '');
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{8}$/.test(token) || password.length < 8) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{8}$/.test(token)) {
     return res.status(400).json({ error: 'invalid registration details' });
   }
-  const existing = await admin.auth.admin.getUserByEmail(email);
-  if (existing.data?.user) return res.status(409).json({ error: 'an account with this email already exists' });
-  const r = await auth.auth.verifyOtp({ email, token, type: 'email' });
+
+  const r = await auth.auth.verifyOtp({ email, token, type: 'signup' });
   if (r.error || !r.data.user) return res.status(401).json({ error: r.error?.message || 'invalid code' });
-  const userId = r.data.user.id;
-  const updated = await admin.auth.admin.updateUserById(userId, { password, email_confirm: true });
-  if (updated.error) return res.status(400).json({ error: updated.error.message });
-  try { await mergeGuestIntoAccount(userId, req.cookies.hours_guest); } catch { return res.status(500).json({ error: 'could not sync guest data' }); }
+
+  try { await mergeGuestIntoAccount(r.data.user.id, req.cookies.hours_guest); } catch { return res.status(500).json({ error: 'could not sync guest data' }); }
   clearSession(res);
   clearGuestCookie(res);
   res.json({ ok: true });
-});
-
-app.post('/api/auth/send-otp', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid email' });
-  const r = await auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
-  if (r.error) return res.status(400).json({ error: r.error.message });
-  res.json({ ok: true });
-});
-
-app.post('/api/auth/verify-otp', async (req, res) => {
-  const email = String(req.body.email || '').trim().toLowerCase();
-  const token = String(req.body.token || '').trim();
-  if (!/^\d{8}$/.test(token)) return res.status(400).json({ error: 'invalid code' });
-  const r = await auth.auth.verifyOtp({ email, token, type: 'email' });
-  if (r.error || !r.data.session) return res.status(401).json({ error: r.error?.message || 'invalid code' });
-  try {
-    await mergeGuestIntoAccount(r.data.user.id, req.cookies.hours_guest);
-  } catch (e) {
-    return res.status(500).json({ error: 'could not sync guest data' });
-  }
-  setSession(res, r.data.session);
-  clearGuestCookie(res);
-  res.json({ ok: true, user: { id: r.data.user.id, email: r.data.user.email } });
 });
 
 app.post('/api/auth/password', async (req, res) => {
@@ -370,6 +341,13 @@ admin.channel('hours-server-state').on('postgres_changes', { event: '*', schema:
 }).subscribe();
 
 app.use(express.static('public', { index: 'index.html', extensions: ['html'] }));
+app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (req.path.startsWith('/api')) return res.status(500).json({ error: err.message || 'server error' });
+  next(err);
+});
+
 app.use((req, res) => res.sendFile(process.cwd() + '/public/index.html'));
 
 app.listen(PORT, () => console.log(`HOURS online on :${PORT}`));
