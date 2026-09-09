@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>hours. — login</title>
+<style>
+*{box-sizing:border-box}
+:root{--bg:#f5f5f2;--panel:#fff;--text:#111;--muted:#73736d;--line:#deded8;--accent:#111;--accentText:#fff;--danger:#b42318}
+@media(prefers-color-scheme:dark){:root{--bg:#101010;--panel:#181818;--text:#f3f3f0;--muted:#999;--line:#333;--accent:#f2f2ee;--accentText:#111;--danger:#ff7777}}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;display:grid;place-items:center;padding:24px}
+.authBox{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 70px #0001}
+h1{margin:0 0 7px;font-size:40px;letter-spacing:-2.5px}h2{margin:0 0 5px;letter-spacing:-.8px}.intro{color:var(--muted);margin:0 0 22px;font-size:14px}
+label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none;font:inherit}input:focus{border-color:var(--text)}
+.actions{display:grid;gap:9px;margin-top:15px}.primary,.ghost{width:100%;border-radius:11px;padding:11px 15px;font:inherit;cursor:pointer}.primary{border:1px solid var(--accent);background:var(--accent);color:var(--accentText)}.ghost{border:1px solid var(--line);background:transparent;color:var(--text)}button:disabled{opacity:.45;cursor:not-allowed}
+.divider{display:flex;align-items:center;gap:10px;margin:19px 0;color:var(--muted);font-size:11px}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}
+.smallLink{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:0;cursor:pointer}.smallLink:hover{text-decoration:underline}.status{min-height:18px;margin-top:13px;color:var(--muted);font-size:12px}.error{min-height:18px;margin-top:8px;color:var(--danger);font-size:13px}
+.spinner{width:17px;height:17px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;vertical-align:-4px;animation:spin .7s linear infinite;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<main class="authBox">
+  <h1>hours.</h1>
+  <p class="intro" id="intro">Log what you actually did.</p>
+
+  <section id="recoveryView" style="display:none">
+    <h2>Reset password</h2>
+    <p class="intro">Choose a new password for your account.</p>
+    <label>New password</label>
+    <input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="••••••••">
+    <div class="actions"><button class="primary" id="recoveryBtn" onclick="completeRecovery()">SET PASSWORD</button></div>
+  </section>
+
+  <section id="loginView">
+    <h2>Login</h2>
+    <label>Email</label>
+    <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div class="actions">
+      <button class="primary" id="loginBtn" onclick="login()">LOGIN</button>
+      <button class="smallLink" onclick="resetPassword()">Reset password</button>
+    </div>
+    <div class="divider"><span>OR</span></div>
+    <button class="ghost" onclick="showRegister()">SIGN UP</button>
+    <div class="actions"><button class="ghost" onclick="useGuest()">USE WITHOUT AN ACCOUNT</button></div>
+  </section>
+
+  <section id="registerView" style="display:none">
+    <h2>Register</h2>
+    <label>Email</label>
+    <input id="registerEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="registerPassword" type="password" autocomplete="new-password" placeholder="••••••••">
+    <div class="actions">
+      <button class="primary" id="registerBtn" onclick="sendRegistrationOTP()">SEND EMAIL OTP</button>
+    </div>
+    <div id="registerOtpBox" style="display:none">
+      <label>Email OTP</label>
+      <input id="registerOTP" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678">
+      <div class="actions"><button class="primary" id="verifyRegisterBtn" onclick="verifyRegistrationOTP()">VERIFY EMAIL</button></div>
+    </div>
+    <div class="actions"><button class="ghost" onclick="showLogin()">BACK TO LOGIN</button></div>
+  </section>
+
+  <div id="busy" style="display:none" class="status"><span class="spinner"></span><span id="busyText">Working…</span></div>
+  <div id="error" class="error"></div>
+  <div id="status" class="status">Server-stored data.</div>
+</main>
+<script>
+const $=s=>document.querySelector(s);
+function setBusy(b,text){
+  $("#busy").style.display=b?"block":"none";$("#busyText").textContent=text||"Working…";
+  ["#loginBtn","#registerBtn","#verifyRegisterBtn","#recoveryBtn"].forEach(x=>{if($(x))$(x).disabled=b});
+}
+function clearMessages(){$("#error").textContent=""}
+function showLogin(message=""){$("#loginView").style.display="block";$("#registerView").style.display="none";clearMessages();if(message)$("#status").textContent=message;$("#loginEmail").focus()}
+function showRegister(){$("#loginView").style.display="none";$("#registerView").style.display="block";clearMessages();$("#status").textContent="We'll verify your email with an 8-digit OTP.";$("#registerEmail").focus()}
+async function login(){
+  const email=$("#loginEmail").value.trim().toLowerCase(),password=$("#loginPassword").value;clearMessages();
+  if(!email||!password){$("#error").textContent="Enter your email and password.";return}
+  setBusy(true,"Signing you in…");
+  try{const r=await fetch("/api/auth/password",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,password})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not sign in");location.replace("/dashboard.html")}
+  catch(e){$("#error").textContent=e.message;setBusy(false)}
+}
+async function resetPassword(){
+  const email=$("#loginEmail").value.trim().toLowerCase();clearMessages();if(!email){$("#error").textContent="Enter your email first.";return}
+  setBusy(true,"Sending reset email…");
+  try{const r=await fetch("/api/auth/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not send reset email");$("#status").textContent="Password reset email sent."}
+  catch(e){$("#error").textContent=e.message}finally{setBusy(false)}
+}
+async function sendRegistrationOTP(){
+  const email=$("#registerEmail").value.trim().toLowerCase(),password=$("#registerPassword").value;clearMessages();
+  if(!email||!password){$("#error").textContent="Enter your email and password.";return}
+  if(password.length<8){$("#error").textContent="Password must be at least 8 characters.";return}
+  setBusy(true,"Sending email OTP…");
+  try{const r=await fetch("/api/auth/register/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,password})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not send OTP");$("#registerOtpBox").style.display="block";$("#status").textContent="OTP sent. Enter the 8-digit code from your email.";$("#registerOTP").focus()}
+  catch(e){$("#error").textContent=e.message}finally{setBusy(false)}
+}
+async function verifyRegistrationOTP(){
+  const email=$("#registerEmail").value.trim().toLowerCase(),password=$("#registerPassword").value,token=$("#registerOTP").value.trim();clearMessages();
+  if(!/^\d{8}$/.test(token)){$("#error").textContent="Enter the 8-digit OTP.";return}
+  setBusy(true,"Creating your account…");
+  try{const r=await fetch("/api/auth/register/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,password,token})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not verify email");showLogin("Account created. Now log in with your email and password.");$("#loginEmail").value=email;$("#loginPassword").focus()}
+  catch(e){$("#error").textContent=e.message}finally{setBusy(false)}
+}
+async function useGuest(){
+  clearMessages();setBusy(true,"Starting guest mode…");
+  try{const r=await fetch("/api/guest?create=1",{credentials:"include"});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not start guest mode");location.replace("/dashboard.html")}
+  catch(e){$("#error").textContent=e.message;setBusy(false)}
+}
+
+async function completeRecovery(){
+  const password=$("#recoveryPassword").value;clearMessages();
+  if(password.length<8){$("#error").textContent="Password must be at least 8 characters.";return}
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));const accessToken=hash.get("access_token");
+  if(!accessToken){$("#error").textContent="Invalid or expired reset link.";return}
+  setBusy(true,"Updating password…");
+  try{const r=await fetch("/api/auth/reset-password/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:accessToken,password})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not update password");history.replaceState(null,"",location.pathname+location.search);$("#recoveryView").style.display="none";$("#loginView").style.display="block";$("#loginPassword").value="";$("#status").textContent="Password updated. Log in with your new password.";$("#loginEmail").focus()}catch(e){$("#error").textContent=e.message}finally{setBusy(false)}
+}
+
+async function boot(){
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+  if(hash.get("type")==="recovery" && hash.get("access_token")){
+    $("#loginView").style.display="none";$("#registerView").style.display="none";$("#recoveryView").style.display="block";$("#status").textContent="Set a new password for your account.";$("#recoveryPassword").focus();return;
+  }
+  try{const r=await fetch("/api/auth/me",{credentials:"include"});if(r.ok){location.replace("/dashboard.html");return}}
+  catch{}
+}
+boot();
+</script>
+</body>
+</html>
