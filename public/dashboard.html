@@ -126,13 +126,23 @@ function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&l
 function secFmt(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")}
 function human(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);if(h)return `${h}h ${m}m`;if(m)return `${m}m`;return `${sec}s`}
 function zone(){return state.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"}
-function timeOpts(){return {timeZone:zone(),hour:state.timeFormat==="24h"?"2-digit":"numeric",minute:"2-digit",second:"2-digit",hour12:state.timeFormat!=="24h"}}
+function timeOpts(){return {timeZone:zone(),hour:"2-digit",minute:"2-digit",hour12:state.timeFormat!=="24h",hourCycle:state.timeFormat==="24h"?"h23":"h12"}}
 function dateOpts(){return {timeZone:zone(),year:"numeric",month:"short",day:"numeric"}}
 function dateTime(ms){return new Intl.DateTimeFormat(undefined,{...dateOpts(),...timeOpts()}).format(new Date(ms))}
 function dateOnly(ms){return new Intl.DateTimeFormat(undefined,dateOpts()).format(new Date(ms))}
 function timeOnly(ms){return new Intl.DateTimeFormat(undefined,timeOpts()).format(new Date(ms))}
 function inputDateNow(){const parts=new Intl.DateTimeFormat("en-CA",{timeZone:zone(),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const m=Object.fromEntries(parts.map(x=>[x.type,x.value]));return `${m.year}-${m.month}-${m.day}`}
-function tzOptions(){const zones=Intl.supportedValuesOf?Intl.supportedValuesOf("timeZone"): ["UTC","Asia/Kolkata","America/New_York","America/Los_Angeles","Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Singapore","Australia/Sydney"];const current=zone();if(!zones.includes(current))zones.unshift(current);return zones.map(z=>`<option value="${esc(z)}" ${z===current?"selected":""}>${esc(z)}</option>`).join("")}
+function tzOffset(z,ms=Date.now()){
+ try{
+  const parts=new Intl.DateTimeFormat("en-US",{timeZone:z,timeZoneName:"longOffset",hour:"2-digit",minute:"2-digit"}).formatToParts(new Date(ms));
+  const v=parts.find(x=>x.type==="timeZoneName")?.value||"GMT";
+  const m=v.match(/GMT([+-])(\d{2}):(\d{2})/);
+  if(!m)return v==="GMT"?"UTC+00:00":v.replace("GMT","UTC");
+  return `UTC${m[1]}${m[2]}:${m[3]}`;
+ }catch{return "UTC+00:00"}
+}
+function tzLabel(z){return `(${tzOffset(z)}) ${z}`}
+function tzOptions(){const zones=Intl.supportedValuesOf?Intl.supportedValuesOf("timeZone"): ["UTC","Asia/Kolkata","America/New_York","America/Los_Angeles","Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Singapore","Australia/Sydney"];const current=zone();if(!zones.includes(current))zones.unshift(current);return zones.map(z=>`<option value="${esc(z)}" ${z===current?"selected":""}>${esc(tzLabel(z))}</option>`).join("")}
 async function internetNow(){try{const r=await fetch("/api/time",{cache:"no-store"});const j=await r.json();if(r.ok&&Number.isFinite(j.now))return j.now}catch{}return Date.now()}
 function hours(sec){return sec/3600}
 function pfind(id){return state.pursuits.find(p=>p.id===id)}
