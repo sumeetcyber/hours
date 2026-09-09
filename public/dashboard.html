@@ -344,9 +344,8 @@ function avgPerDayText(hoursPerDay){return human(hoursPerDay*3600)+"/day"}
 function trackedAvg(pid){
  const es=state.entries.filter(e=>e.pursuitId===pid);
  if(!es.length)return 0;
- const first=Math.min(...es.map(e=>e.start));
- const days=calendarDaysInclusive(first);
- return hours(total(pid))/days;
+ const days=new Set(es.map(e=>{const d=new Date(e.start);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;})).size;
+ return hours(total(pid))/Math.max(1,days);
 }
 function etaInfo(p,t){
  if(!p.target)return {wish:"—",tracked:"—"};
@@ -355,8 +354,9 @@ function etaInfo(p,t){
  return {wish:date(w),tracked:date(ta)};
 }
 function analyticsPage(){
- const totalS=allTotal(), first=state.entries.length?Math.min(...state.entries.map(e=>e.start)):0, days=first?calendarDaysInclusive(first):0;
- const avg=days?hours(totalS)/days:0;
+ const totalS=allTotal();
+ const activeDays=new Set(state.entries.map(e=>{const d=new Date(e.start);return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;})).size;
+ const avg=activeDays?hours(totalS)/activeDays:0;
  const ranked=[...state.pursuits].filter(p=>!p.archived).sort((a,b)=>total(b.id)-total(a.id));
  const last28=[];for(let i=27;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const a=d.getTime(),b=a+86400000;last28.push(state.entries.filter(e=>e.start>=a&&e.start<b).reduce((s,e)=>s+e.duration,0))}
  return `<section><div class="sub">ANALYTICS</div><h1>Where did the hours go?</h1>
