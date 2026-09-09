@@ -280,7 +280,7 @@ function openPursuit(id){
  const tracked=trackedAvg(id), eta=etaInfo(p,t);
  openModal(`<div class="row"><div><div class="sub">PURSUIT</div><h2>${esc(p.name)}</h2></div><button class="ghost" onclick="closeModal()">×</button></div>
  <div class="hours">${human(t)}</div>${target?`<div class="bar"><div class="fill ${pct>=100?"done":""}" style="width:${pct}%"></div></div><div class="muted">${human(t)} / ${target}h · ${pct.toFixed(1)}%</div>`:""}
- <div class="kpis"><div class="kpi"><div class="muted small">TRACKED AVG</div><div class="num">${tracked?tracked.toFixed(1)+"h/day":"—"}</div></div><div class="kpi"><div class="muted small">REMAINING</div><div class="num">${target?Math.max(0,target-hours(t)).toFixed(1)+"h":"—"}</div></div></div>
+ <div class="kpis"><div class="kpi"><div class="muted small">TRACKED AVG</div><div class="num">${tracked?avgPerDayText(tracked):"—"}</div></div><div class="kpi"><div class="muted small">REMAINING</div><div class="num">${target?Math.max(0,target-hours(t)).toFixed(1)+"h":"—"}</div></div></div>
  ${target?`<div class="etaGrid" style="margin-top:12px"><div class="etaBox"><div class="muted small">WISHFUL ETA</div><strong>${eta.wish}</strong></div><div class="etaBox"><div class="muted small">TRACKED ETA</div><strong>${eta.tracked}</strong></div></div>`:""}
  <div class="sectionTitle">CATEGORIES</div>
  <div class="categoryTree">${p.categories.map(c=>categoryRow(p,c)).join("")||'<div class="muted">No categories yet.</div>'}</div>
@@ -340,6 +340,7 @@ function calendarDaysInclusive(firstMs,lastMs=Date.now()){
  const lastDay=new Date(last.getFullYear(),last.getMonth(),last.getDate());
  return Math.max(1,Math.floor((lastDay-firstDay)/86400000)+1);
 }
+function avgPerDayText(hoursPerDay){return human(hoursPerDay*3600)+"/day"}
 function trackedAvg(pid){
  const es=state.entries.filter(e=>e.pursuitId===pid);
  if(!es.length)return 0;
@@ -359,7 +360,7 @@ function analyticsPage(){
  const ranked=[...state.pursuits].filter(p=>!p.archived).sort((a,b)=>total(b.id)-total(a.id));
  const last28=[];for(let i=27;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const a=d.getTime(),b=a+86400000;last28.push(state.entries.filter(e=>e.start>=a&&e.start<b).reduce((s,e)=>s+e.duration,0))}
  return `<section><div class="sub">ANALYTICS</div><h1>Where did the hours go?</h1>
- <div class="kpis"><div class="kpi"><div class="muted small">TOTAL</div><div class="num">${human(totalS)}</div></div><div class="kpi"><div class="muted small">TRACKED AVG / DAY</div><div class="num">${avg?avg.toFixed(1)+"h":"—"}</div></div><div class="kpi"><div class="muted small">ENTRIES</div><div class="num">${state.entries.length}</div></div></div>
+ <div class="kpis"><div class="kpi"><div class="muted small">TOTAL</div><div class="num">${human(totalS)}</div></div><div class="kpi"><div class="muted small">TRACKED AVG / DAY</div><div class="num">${avg?avgPerDayText(avg):"—"}</div></div><div class="kpi"><div class="muted small">ENTRIES</div><div class="num">${state.entries.length}</div></div></div>
  <div class="card" style="margin-top:14px"><h2>Last 28 days</h2><div class="heat">${last28.map(s=>`<div class="cell" data-level="${s?Math.min(4,Math.ceil(hours(s)/2)):0}" title="${human(s)}"></div>`).join("")}</div><div class="row small muted" style="margin-top:8px"><span>less</span><span>more</span></div></div>
  <div class="card" style="margin-top:14px"><h2>By pursuit</h2>${ranked.map(p=>{const t=total(p.id),pct=totalS?t/totalS*100:0;return `<div style="margin:18px 0"><div class="row"><b>${esc(p.name)}</b><span>${human(t)} · ${pct.toFixed(0)}%</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`}).join("")||'<div class="muted">No data yet.</div>'}</div></section>`;
 }
