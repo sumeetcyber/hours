@@ -334,10 +334,17 @@ function categoriesPage(){
  return `<section><div class="sub">CATEGORIES</div><h1>See the actual breakdown.</h1><p class="muted">Pursuit → category → hours. Targets are optional.</p>
  <div class="grid" style="margin-top:22px">${ps.map(p=>`<article class="card"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><button class="ghost" onclick="addCategory('${p.id}')">+ Category</button></div><div class="sectionTitle" style="margin-top:18px">${p.categories.length?"BREAKDOWN":"EMPTY"}</div>${p.categories.filter(c=>!c.archived).map(c=>{const t=total(p.id,c.id);return `<div class="catRow"><div style="flex:1"><div class="row"><b>${esc(c.name)}</b><span>${human(t)}${c.target?" / "+c.target+"h":""}</span></div>${c.target?`<div class="bar"><div class="fill ${t>=c.target*3600?"done":""}" style="width:${Math.min(100,t/(c.target*3600)*100)}%"></div></div>`:""}</div><button class="ghost" onclick="editCategory('${p.id}','${c.id}')">Edit</button></div>`}).join("")||'<div class="muted">No categories yet.</div>'}<div class="sectionTitle">TOTAL</div><div class="hours">${human(total(p.id))}</div></article>`).join("")||`<div class="card empty">Create a pursuit first.</div>`}</div></section>`;
 }
+function calendarDaysInclusive(firstMs,lastMs=Date.now()){
+ const first=new Date(firstMs); const last=new Date(lastMs);
+ const firstDay=new Date(first.getFullYear(),first.getMonth(),first.getDate());
+ const lastDay=new Date(last.getFullYear(),last.getMonth(),last.getDate());
+ return Math.max(1,Math.floor((lastDay-firstDay)/86400000)+1);
+}
 function trackedAvg(pid){
  const es=state.entries.filter(e=>e.pursuitId===pid);
  if(!es.length)return 0;
- const first=Math.min(...es.map(e=>e.start)),days=Math.max(1,Math.ceil((Date.now()-first)/86400000));
+ const first=Math.min(...es.map(e=>e.start));
+ const days=calendarDaysInclusive(first);
  return hours(total(pid))/days;
 }
 function etaInfo(p,t){
@@ -347,7 +354,7 @@ function etaInfo(p,t){
  return {wish:date(w),tracked:date(ta)};
 }
 function analyticsPage(){
- const totalS=allTotal(), first=state.entries.length?Math.min(...state.entries.map(e=>e.start)):0, days=first?Math.max(1,Math.ceil((Date.now()-first)/86400000)):0;
+ const totalS=allTotal(), first=state.entries.length?Math.min(...state.entries.map(e=>e.start)):0, days=first?calendarDaysInclusive(first):0;
  const avg=days?hours(totalS)/days:0;
  const ranked=[...state.pursuits].filter(p=>!p.archived).sort((a,b)=>total(b.id)-total(a.id));
  const last28=[];for(let i=27;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const a=d.getTime(),b=a+86400000;last28.push(state.entries.filter(e=>e.start>=a&&e.start<b).reduce((s,e)=>s+e.duration,0))}
