@@ -40,7 +40,7 @@ header{display:flex;justify-content:space-between;align-items:center;gap:20px;ma
 .nav button.active,.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
 h1{font-size:42px;line-height:1.05;letter-spacing:-2.5px;margin:7px 0 8px}
 h2{letter-spacing:-.7px}.sub,.muted{color:var(--muted)}
-.small{font-size:12px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.small{font-size:12px}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.pursuitCard{cursor:grab}.pursuitCard:active{cursor:grabbing}.pursuitCard.dragging{opacity:.45}.pursuitCard.dragOver{outline:2px dashed var(--accent);outline-offset:3px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
 .card.tight{padding:15px}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.wrap{flex-wrap:wrap}
 .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
@@ -97,6 +97,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
     <button data-page="hours">Hours</button>
     <button data-page="categories">Categories</button>
     <button data-page="history">History</button>
+    <button data-page="archived">Archived</button>
     <button data-page="analytics">Analytics</button>
     <button data-page="settings">Settings</button>
   </nav>
@@ -107,7 +108,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
 <div class="toast" id="toast"></div>
 
 <script>
-const defaultState=()=>({pursuits:[],entries:[],active:null,theme:"system",wishfulDefault:8,pursuitSort:"custom"});
+const defaultState=()=>({pursuits:[],entries:[],active:null,theme:"system",wishfulDefault:8,pursuitSort:"custom",timeZone:(Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"),timeFormat:"12h"});
 let state=defaultState();
 let currentPage="hours", timerInterval=null, saveQueue=Promise.resolve();
 
@@ -124,6 +125,15 @@ function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function secFmt(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")}
 function human(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);if(h)return `${h}h ${m}m`;if(m)return `${m}m`;return `${sec}s`}
+function zone(){return state.timeZone||Intl.DateTimeFormat().resolvedOptions().timeZone||"UTC"}
+function timeOpts(){return {timeZone:zone(),hour:state.timeFormat==="24h"?"2-digit":"numeric",minute:"2-digit",second:"2-digit",hour12:state.timeFormat!=="24h"}}
+function dateOpts(){return {timeZone:zone(),year:"numeric",month:"short",day:"numeric"}}
+function dateTime(ms){return new Intl.DateTimeFormat(undefined,{...dateOpts(),...timeOpts()}).format(new Date(ms))}
+function dateOnly(ms){return new Intl.DateTimeFormat(undefined,dateOpts()).format(new Date(ms))}
+function timeOnly(ms){return new Intl.DateTimeFormat(undefined,timeOpts()).format(new Date(ms))}
+function inputDateNow(){const parts=new Intl.DateTimeFormat("en-CA",{timeZone:zone(),year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(new Date());const m=Object.fromEntries(parts.map(x=>[x.type,x.value]));return `${m.year}-${m.month}-${m.day}`}
+function tzOptions(){const zones=Intl.supportedValuesOf?Intl.supportedValuesOf("timeZone"): ["UTC","Asia/Kolkata","America/New_York","America/Los_Angeles","Europe/London","Europe/Berlin","Asia/Tokyo","Asia/Singapore","Australia/Sydney"];const current=zone();if(!zones.includes(current))zones.unshift(current);return zones.map(z=>`<option value="${esc(z)}" ${z===current?"selected":""}>${esc(z)}</option>`).join("")}
+async function internetNow(){try{const r=await fetch("/api/time",{cache:"no-store"});const j=await r.json();if(r.ok&&Number.isFinite(j.now))return j.now}catch{}return Date.now()}
 function hours(sec){return sec/3600}
 function pfind(id){return state.pursuits.find(p=>p.id===id)}
 function cfind(pid,id){return pfind(pid)?.categories.find(c=>c.id===id)}
@@ -202,6 +212,7 @@ function render(){
   if(currentPage==="hours")v.innerHTML=hoursPage();
   if(currentPage==="categories")v.innerHTML=categoriesPage();
   if(currentPage==="history")v.innerHTML=historyPage();
+  if(currentPage==="archived")v.innerHTML=archivedPage();
   if(currentPage==="analytics")v.innerHTML=analyticsPage();
   if(currentPage==="settings")v.innerHTML=settingsPage();
   bindPage();
@@ -247,7 +258,7 @@ function hoursPage(){
       <div class="sub">RIGHT NOW</div>
       <h2>${esc(pfind(active.pursuitId)?.name||"Unknown")} ${cfind(active.pursuitId,active.categoryId)?'· '+esc(cfind(active.pursuitId,active.categoryId).name):''}</h2>
       <div id="liveTimer" class="timer running">${secFmt((Date.now()-active.start)/1000)}</div>
-      <div class="muted">Started ${new Date(active.start).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</div>
+      <div class="muted">Started ${dateTime(active.start)}</div>
       <div class="actions" style="justify-content:center"><button class="primary" onclick="stopTimer()">STOP TIMER</button></div>
     </article>`:"";
   return `<section class="hero">
@@ -256,7 +267,7 @@ function hoursPage(){
     ${activeBlock}
     <div class="row wrap" style="margin-top:28px"><div><div class="sectionTitle" style="margin:0">YOUR PURSUITS</div><div class="muted">The things you're actually trying to get good at.</div></div>
     <div class="actions" style="margin:0;align-items:center"><select id="pursuitSort" style="width:auto;min-width:130px" onchange="setPursuitSort(this.value)"><option value="custom" ${(state.pursuitSort||"custom")==="custom"?"selected":""}>Custom</option><option value="az" ${state.pursuitSort==="az"?"selected":""}>A–Z</option><option value="za" ${state.pursuitSort==="za"?"selected":""}>Z–A</option></select><button class="primary" onclick="quickStart()">+ TRACK TIME</button><button class="ghost" onclick="addPursuit()">+ Pursuit</button></div></div>
-    <div class="grid" style="margin-top:14px">${sortedActivePursuits().map(p=>pCard(p)).join("")||`<div class="card empty">Nothing here yet.<br><br><button class="primary" onclick="addPursuit()">+ Add pursuit</button></div>`}</div>
+    <div id="pursuitGrid" class="grid" style="margin-top:14px">${sortedActivePursuits().map(p=>pCard(p)).join("")||`<div class="card empty">Nothing here yet.<br><br><button class="primary" onclick="addPursuit()">+ Add pursuit</button></div>`}</div>
     ${archiveBlock()}
     <div class="sectionTitle">PREVIOUS</div>
     <div class="card">${previousBlock()}</div>
@@ -265,20 +276,29 @@ function hoursPage(){
 function archiveBlock(){
  const archived=archivedPursuits(),recycle=recyclePursuits();
  if(!archived.length&&!recycle.length)return "";
- return `<div class="sectionTitle">ARCHIVED</div><div class="grid">${archived.map(p=>`<article class="card"><div class="row"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted small">Archived pursuit</div></div><span class="pill">ARCHIVED</span></div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="primary" onclick="unarchivePursuit('${p.id}')">Restore</button><button class="danger" onclick="sendToRecycle('${p.id}')">Move to recycle bin</button></div></article>`).join("")||'<div class="muted">No archived pursuits.</div>'}</div>
- <div class="sectionTitle">RECYCLE BIN</div><div class="grid">${recycle.map(p=>{const daysLeft=Math.max(0,14-Math.floor((Date.now()-p.deletedAt)/86400000));return `<article class="card"><div class="row"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted small">Deleted ${new Date(p.deletedAt).toLocaleDateString()}</div></div><span class="pill">${daysLeft}d LEFT</span></div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="primary" onclick="restorePursuit('${p.id}')">Restore</button><button class="danger" onclick="deleteForever('${p.id}')">Delete forever</button></div></article>`}).join("")||'<div class="muted">Recycle bin is empty.</div>'}</div>`;
+ return `<div class="sectionTitle">ARCHIVED</div><div class="muted small">Manage archived pursuits from the Archived tab.</div>`;
 }
+function archivedPage(){
+ cleanupRecycleBin();
+ const archived=archivedPursuits(),recycle=recyclePursuits();
+ return `<section><div class="row wrap"><div><div class="sub">ARCHIVED</div><h1>Out of the way, not gone.</h1><div class="muted">Archived pursuits stay here. Recycle-bin items are permanently deleted after 14 days.</div></div><div class="actions" style="margin:0"><button class="ghost" onclick="emptyRecycleBin()" ${recycle.length?"":"disabled"}>EMPTY RECYCLE BIN</button></div></div>
+ <div class="sectionTitle">ARCHIVED PURSUITS · ${archived.length}</div>
+ <div class="grid">${archived.map(p=>`<article class="card"><div class="row"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted small">Archived pursuit</div></div><span class="pill">ARCHIVED</span></div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="primary" onclick="unarchivePursuit('${p.id}')">Restore</button><button class="danger" onclick="sendToRecycle('${p.id}')">Delete pursuit</button></div></article>`).join("")||'<div class="card empty">No archived pursuits.</div>'}</div>
+ <div class="sectionTitle">RECYCLE BIN · ${recycle.length}</div>
+ <div class="grid">${recycle.map(p=>{const daysLeft=Math.max(0,14-Math.floor((Date.now()-p.deletedAt)/86400000));return `<article class="card pursuitCard" draggable="true" data-pursuit-id="${esc(p.id)}"><div class="row"><div><span class="dragHandle" title="Drag to reorder">⠿</span><h2 style="margin:0;display:inline">${esc(p.name)}</h2><div class="muted small">Deleted ${dateOnly(p.deletedAt)} · ${dateTime(p.deletedAt)}</div></div><span class="pill">${daysLeft}d LEFT</span></div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="primary" onclick="restorePursuit('${p.id}')">Restore</button><button class="danger" onclick="deleteForever('${p.id}')">Delete forever</button></div></article>`}).join("")||'<div class="card empty">Recycle bin is empty.</div>'}</div></section>`;
+}
+function emptyRecycleBin(){const recycle=recyclePursuits();if(!recycle.length)return; if(!confirm(`Permanently delete ${recycle.length} pursuit${recycle.length===1?"":"s"} and all their logged time? This cannot be undone.`))return;const ids=new Set(recycle.map(p=>p.id));state.entries=state.entries.filter(e=>!ids.has(e.pursuitId));state.pursuits=state.pursuits.filter(p=>!ids.has(p.id));persist();render();showToast("Recycle bin emptied.")}
 function pCard(p){
  const t=total(p.id), target=p.target||0, pct=target?Math.min(100,t/(target*3600)*100):0;
- return `<article class="card"><div class="row"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted small">${p.categories.length} categor${p.categories.length===1?"y":"ies"}</div></div>${target&&t>=target*3600?'<span class="pill done">COMPLETED</span>':''}</div>
+ return `<article class="card pursuitCard" draggable="true" data-pursuit-id="${esc(p.id)}"><div class="row"><div><span class="dragHandle" title="Drag to reorder">⠿</span><h2 style="margin:0;display:inline">${esc(p.name)}</h2><div class="muted small">${p.categories.length} categor${p.categories.length===1?"y":"ies"}</div></div>${target&&t>=target*3600?'<span class="pill done">COMPLETED</span>':''}</div>
  <div class="hours">${human(t)}</div>
  ${target?`<div class="bar"><div class="fill ${t>=target*3600?"done":""}" style="width:${pct}%"></div></div><div class="row small muted"><span>${human(t)} / ${target}h</span><span>${pct.toFixed(0)}%</span></div>`:"<div class=\"muted small\">No target — just accumulate.</div>"}
- <div class="actions"><button class="primary" onclick="startFor('${p.id}')">Start</button><button class="ghost" onclick="openPursuit('${p.id}')">Open</button><button class="ghost" onclick="editPursuit('${p.id}')">Edit</button></div></article>`;
+ <div class="actions"><button class="primary" onclick="startFor('${p.id}')">Start</button><button class="ghost" onclick="openPursuit('${p.id}')">Open</button><button class="ghost" onclick="editPursuit('${p.id}')">Edit</button><button class="danger" onclick="sendToRecycle('${p.id}')">Delete</button></div></article>`;
 }
 function previousBlock(){
  const es=[...state.entries].sort((a,b)=>b.start-a.start).slice(0,8);
  if(!es.length)return `<div class="empty">No previous hours yet.</div>`;
- return `<div class="list">${es.map(e=>`<div class="listItem row"><div><b>${esc(pfind(e.pursuitId)?.name||"Deleted pursuit")}</b><div class="muted small">${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")} · ${new Date(e.start).toLocaleDateString()}</div>${e.note?`<div class="small">${esc(e.note)}</div>`:""}</div><strong>${human(e.duration)}</strong></div>`).join("")}</div>`;
+ return `<div class="list">${es.map(e=>`<div class="listItem row"><div><b>${esc(pfind(e.pursuitId)?.name||"Deleted pursuit")}</b><div class="muted small">${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")} · ${dateTime(e.insertedAt||e.start)}</div>${e.note?`<div class="small">${esc(e.note)}</div>`:""}</div><strong>${human(e.duration)}</strong></div>`).join("")}</div>`;
 }
 function quickStart(){if(!state.pursuits.filter(p=>!p.archived).length)return addPursuit();startFor(state.pursuits.find(p=>!p.archived).id)}
 function startFor(pid){
@@ -286,9 +306,10 @@ function startFor(pid){
  const p=pfind(pid);
  openModal(`<h2>Start timer</h2><label>Pursuit</label><input value="${esc(p.name)}" disabled><label>Category</label><select id="startCat"><option value="">General</option>${p.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><div class="actions"><button class="primary" onclick="beginTimer('${pid}')">START TIMER</button><button class="ghost" onclick="closeModal()">Cancel</button></div>`);
 }
-function beginTimer(pid){
+async function beginTimer(pid){
  if(state.active)return;
- state.active={id:uid(),pursuitId:pid,categoryId:$("#startCat").value||null,start:Date.now()};
+ const now=await internetNow();
+ state.active={id:uid(),pursuitId:pid,categoryId:$("#startCat").value||null,start:now};
  persist();closeModal();currentPage="hours";render();showToast("Timer started.");
 }
 function startDisplayLoop(){
@@ -298,10 +319,10 @@ function startDisplayLoop(){
    if(x&&state.active)x.textContent=secFmt((Date.now()-state.active.start)/1000);
  },250);
 }
-function stopTimer(){
+async function stopTimer(){
  if(!state.active)return;
- const a=state.active,end=Date.now(),duration=Math.max(1,(end-a.start)/1000);
- state.entries.push({id:a.id,pursuitId:a.pursuitId,categoryId:a.categoryId,start:a.start,end,duration,note:"",entryType:"timer"});
+ const a=state.active,end=await internetNow(),duration=Math.max(1,(end-a.start)/1000);
+ state.entries.push({id:a.id,pursuitId:a.pursuitId,categoryId:a.categoryId,start:a.start,end,duration,note:"",entryType:"timer",insertedAt:end});
  state.active=null;persist();clearInterval(timerInterval);render();showToast("Time saved.");
 }
 function addPursuit(){
@@ -328,7 +349,7 @@ function openPursuit(id){
  ${target?`<div class="etaGrid" style="margin-top:12px"><div class="etaBox"><div class="muted small">WISHFUL ETA</div><strong>${eta.wish}</strong></div><div class="etaBox"><div class="muted small">TRACKED ETA</div><strong>${eta.tracked}</strong></div></div>`:""}
  <div class="sectionTitle">CATEGORIES</div>
  <div class="categoryTree">${p.categories.map(c=>categoryRow(p,c)).join("")||'<div class="muted">No categories yet.</div>'}</div>
- <div class="actions"><button class="primary" onclick="startFor('${id}')">Start timer</button><button class="ghost" onclick="manualFor('${id}')">Add hours</button><button class="ghost" onclick="addCategory('${id}')">+ Category</button></div>`);
+ <div class="actions"><button class="primary" onclick="startFor('${id}')">Start timer</button><button class="ghost" onclick="manualFor('${id}')">Add hours</button><button class="ghost" onclick="addCategory('${id}')">+ Category</button><button class="danger" onclick="sendToRecycle('${id}')">Delete pursuit</button></div>`);
 }
 function categoryRow(p,c){
  const t=total(p.id,c.id),target=c.target||0,pct=target?Math.min(100,t/(target*3600)*100):0;
@@ -346,27 +367,28 @@ function updateC(pid,cid){const c=cfind(pid,cid);c.name=$("#ecn").value.trim()||
 function archiveC(pid,cid){cfind(pid,cid).archived=true;persist();closeModal();openPursuit(pid)}
 function manualFor(pid){
  const p=pfind(pid);
- openModal(`<h2>Add hours</h2><label>Pursuit</label><input value="${esc(p.name)}" disabled><label>Category</label><select id="mc"><option value="">General</option>${p.categories.filter(c=>!c.archived).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><label>Date</label><input id="mdate" type="date" value="${new Date().toISOString().slice(0,10)}"><label>Duration (minutes)</label><input id="mins" type="number" min="1" value="60"><label>Note</label><textarea id="mnote" placeholder="What did you actually do?"></textarea><div class="actions"><button class="primary" onclick="saveManual('${pid}')">SAVE HOURS</button></div>`);
+ openModal(`<h2>Add hours</h2><label>Pursuit</label><input value="${esc(p.name)}" disabled><label>Category</label><select id="mc"><option value="">General</option>${p.categories.filter(c=>!c.archived).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><label>Date</label><input id="mdate" type="date" value="${inputDateNow()}"><label>Duration (minutes)</label><input id="mins" type="number" min="1" value="60"><label>Note</label><textarea id="mnote" placeholder="What did you actually do?"></textarea><div class="actions"><button class="primary" onclick="saveManual('${pid}')">SAVE HOURS</button></div>`);
 }
-function saveManual(pid){
+async function saveManual(pid){
  const mins=+$("#mins").value;if(!mins||mins<1)return showToast("Enter a valid duration.");
+ const insertedAt=await internetNow();
  const d=$("#mdate").value, start=new Date(d+"T12:00:00").getTime();
- state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#mc").value||null,start,end:start+mins*60000,duration:mins*60,note:$("#mnote").value.trim(),entryType:"manual"});
+ state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#mc").value||null,start,end:start+mins*60000,duration:mins*60,note:$("#mnote").value.trim(),entryType:"manual",insertedAt});
  persist();closeModal();render();showToast("Hours added.");
 }
 function historyPage(){
  const es=[...state.entries].sort((a,b)=>b.start-a.start);
  return `<section><div class="row wrap"><div><div class="sub">PREVIOUS</div><h1>Hours you've already put in.</h1></div><button class="primary" onclick="quickStart()">+ Track time</button></div>
- <div class="card" style="margin-top:22px"><div class="row wrap"><div class="muted">${es.length} entries · ${human(allTotal())} total</div><button class="ghost" onclick="manualPicker()">+ Add manual time</button></div><div class="tableWrap" style="margin-top:12px">${es.length?`<table class="table"><thead><tr><th>Date</th><th>Pursuit</th><th>Category</th><th>Duration</th><th>Type</th><th>Note</th><th></th></tr></thead><tbody>${es.map(e=>`<tr><td>${new Date(e.start).toLocaleDateString()}</td><td>${esc(pfind(e.pursuitId)?.name||"Deleted")}</td><td>${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")}</td><td><b>${human(e.duration)}</b></td><td>${e.entryType}</td><td>${esc(e.note||"")}</td><td><button class="ghost" onclick="editEntry('${e.id}')">Edit</button> <button class="ghost" onclick="deleteEntry('${e.id}')">×</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">No hours logged yet.</div>`}</div></div></section>`;
+ <div class="card" style="margin-top:22px"><div class="row wrap"><div class="muted">${es.length} entries · ${human(allTotal())} total</div><button class="ghost" onclick="manualPicker()">+ Add manual time</button></div><div class="tableWrap" style="margin-top:12px">${es.length?`<table class="table"><thead><tr><th>Inserted</th><th>Pursuit</th><th>Category</th><th>Duration</th><th>Type</th><th>Note</th><th></th></tr></thead><tbody>${es.map(e=>`<tr><td>${dateTime(e.insertedAt||e.start)}</td><td>${esc(pfind(e.pursuitId)?.name||"Deleted")}</td><td>${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")}</td><td><b>${human(e.duration)}</b></td><td>${e.entryType}</td><td>${esc(e.note||"")}</td><td><button class="ghost" onclick="editEntry('${e.id}')">Edit</button> <button class="ghost" onclick="deleteEntry('${e.id}')">×</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">No hours logged yet.</div>`}</div></div></section>`;
 }
 function manualPicker(){
  if(!state.pursuits.filter(p=>!p.archived).length)return addPursuit();
  const opts=state.pursuits.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
- openModal(`<h2>Add hours</h2><label>Pursuit</label><select id="picker" onchange="pickerCats()">${opts}</select><div id="pickerCats"></div><label>Date</label><input id="pdate" type="date" value="${new Date().toISOString().slice(0,10)}"><label>Duration (minutes)</label><input id="pmins" type="number" min="1" value="60"><label>Note</label><textarea id="pnote"></textarea><div class="actions"><button class="primary" onclick="savePicker()">Save</button></div>`);
+ openModal(`<h2>Add hours</h2><label>Pursuit</label><select id="picker" onchange="pickerCats()">${opts}</select><div id="pickerCats"></div><label>Date</label><input id="pdate" type="date" value="${inputDateNow()}"><label>Duration (minutes)</label><input id="pmins" type="number" min="1" value="60"><label>Note</label><textarea id="pnote"></textarea><div class="actions"><button class="primary" onclick="savePicker()">Save</button></div>`);
  pickerCats();
 }
 function pickerCats(){const p=pfind($("#picker").value);$("#pickerCats").innerHTML=`<label>Category</label><select id="pcat"><option value="">General</option>${p.categories.filter(c=>!c.archived).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>`}
-function savePicker(){const pid=$("#picker").value,mins=+$("#pmins").value;if(!mins||mins<1)return showToast("Invalid duration.");const st=new Date($("#pdate").value+"T12:00:00").getTime();state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#pcat").value||null,start:st,end:st+mins*60000,duration:mins*60,note:$("#pnote").value.trim(),entryType:"manual"});persist();closeModal();render();showToast("Hours added.")}
+async function savePicker(){const pid=$("#picker").value,mins=+$("#pmins").value;if(!mins||mins<1)return showToast("Invalid duration.");const insertedAt=await internetNow(),st=new Date($("#pdate").value+"T12:00:00").getTime();state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#pcat").value||null,start:st,end:st+mins*60000,duration:mins*60,note:$("#pnote").value.trim(),entryType:"manual",insertedAt});persist();closeModal();render();showToast("Hours added.")}
 function editEntry(id){
  const e=state.entries.find(x=>x.id===id);
  openModal(`<h2>Edit time entry</h2><label>Duration (minutes)</label><input id="ee" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}"><label>Note</label><textarea id="enote">${esc(e.note||"")}</textarea><div class="actions"><button class="primary" onclick="saveEntry('${id}')">Save</button></div>`);
@@ -376,7 +398,7 @@ function deleteEntry(id){if(confirm("Delete this time entry?")){state.entries=st
 function categoriesPage(){
  const ps=state.pursuits.filter(p=>!p.archived);
  return `<section><div class="sub">CATEGORIES</div><h1>See the actual breakdown.</h1><p class="muted">Pursuit → category → hours. Targets are optional.</p>
- <div class="grid" style="margin-top:22px">${ps.map(p=>`<article class="card"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><button class="ghost" onclick="addCategory('${p.id}')">+ Category</button></div><div class="sectionTitle" style="margin-top:18px">${p.categories.length?"BREAKDOWN":"EMPTY"}</div>${p.categories.filter(c=>!c.archived).map(c=>{const t=total(p.id,c.id);return `<div class="catRow"><div style="flex:1"><div class="row"><b>${esc(c.name)}</b><span>${human(t)}${c.target?" / "+c.target+"h":""}</span></div>${c.target?`<div class="bar"><div class="fill ${t>=c.target*3600?"done":""}" style="width:${Math.min(100,t/(c.target*3600)*100)}%"></div></div>`:""}</div><button class="ghost" onclick="editCategory('${p.id}','${c.id}')">Edit</button></div>`}).join("")||'<div class="muted">No categories yet.</div>'}<div class="sectionTitle">TOTAL</div><div class="hours">${human(total(p.id))}</div></article>`).join("")||`<div class="card empty">Create a pursuit first.</div>`}</div></section>`;
+ <div class="grid" style="margin-top:22px">${ps.map(p=>`<article class="card"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><button class="ghost" onclick="addCategory('${p.id}')">+ Category</button></div><div class="sectionTitle" style="margin-top:18px">${p.categories.length?"BREAKDOWN":"EMPTY"}</div>${p.categories.filter(c=>!c.archived).map(c=>{const t=total(p.id,c.id);return `<div class="catRow"><div style="flex:1"><div class="row"><b>${esc(c.name)}</b><span>${human(t)}${c.target?" / "+c.target+"h":""}</span></div>${c.target?`<div class="bar"><div class="fill ${t>=c.target*3600?"done":""}" style="width:${Math.min(100,t/(c.target*3600)*100)}%"></div></div>`:""}</div><button class="ghost" onclick="editCategory('${p.id}','${c.id}')">Edit</button></div>`}).join("")||'<div class="muted">No categories yet.</div>'}<div class="sectionTitle">TOTAL</div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="danger" onclick="sendToRecycle('${p.id}')">Delete pursuit</button></div></article>`).join("")||`<div class="card empty">Create a pursuit first.</div>`}</div></section>`;
 }
 function calendarDaysInclusive(firstMs,lastMs=Date.now()){
  const first=new Date(firstMs); const last=new Date(lastMs);
@@ -394,7 +416,7 @@ function trackedAvg(pid){
 function etaInfo(p,t){
  if(!p.target)return {wish:"—",tracked:"—"};
  const rem=Math.max(0,p.target-hours(t)),w=+p.wishful||0,ta=trackedAvg(p.id);
- const date=(rate)=>{if(rem<=0)return"COMPLETED";if(!rate)return"Not enough data";const d=Math.ceil(rem/rate),x=new Date(Date.now()+d*86400000);return x.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
+ const date=(rate)=>{if(rem<=0)return"COMPLETED";if(!rate)return"Not enough data";const d=Math.ceil(rem/rate),x=Date.now()+d*86400000;return dateOnly(x)};
  return {wish:date(w),tracked:date(ta)};
 }
 function analyticsPage(){
@@ -413,6 +435,7 @@ function settingsPage(){
  <div class="card"><h2>Account</h2><p class="muted">${window.__hoursGuest?"You are using HOURS without an account. Your data is server-stored behind this browser's guest cookie.":"Signed in. Your HOURS data is tied to your account."}</p>${window.__hoursGuest?'<div class="actions"><button class="primary" onclick="claimGuest()">CREATE / SIGN IN TO SYNC THIS DATA</button></div>':'<label>New password</label><input id="accountPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters"><div class="actions"><button class="ghost" onclick="setAccountPassword()">SET PASSWORD</button><button class="ghost" onclick="resetCurrentPassword()">RESET PASSWORD</button><button class="ghost" onclick="signOut()">SIGN OUT</button></div><div class="actions"><button class="danger" onclick="deleteAccount()">PERMANENTLY DELETE ACCOUNT</button></div>'}</div>
  <div class="card"><h2>Theme</h2><label>Appearance</label><select id="theme" onchange="setTheme(this.value)"><option value="system" ${state.theme==="system"?"selected":""}>System</option><option value="light" ${state.theme==="light"?"selected":""}>Light</option><option value="dark" ${state.theme==="dark"?"selected":""}>Dark</option><option value="paper" ${state.theme==="paper"?"selected":""}>Paper</option><option value="midnight" ${state.theme==="midnight"?"selected":""}>Midnight</option></select></div>
  <div class="card"><h2>Wishful average</h2><label>Default hours/day for new pursuits</label><input id="wd" type="number" min="0" step=".1" value="${state.wishfulDefault}"><div class="actions"><button class="primary" onclick="saveWishful()">Save</button></div></div>
+ <div class="card"><h2>Clock & display</h2><label>Time zone</label><select id="tz">${tzOptions()}</select><label>Time format</label><div class="actions" style="margin-top:6px"><button class="${state.timeFormat!=="24h"?"primary":"ghost"}" onclick="setTimeFormat('12h')">12-hour</button><button class="${state.timeFormat==="24h"?"primary":"ghost"}" onclick="setTimeFormat('24h')">24-hour</button></div><p class="muted small">Entry timestamps use HOURS' server clock and are displayed in this time zone.</p><div class="actions"><button class="primary" onclick="saveClockSettings()">Save clock settings</button></div></div>
  <div class="card"><h2>Data</h2><p class="muted">All persistent data is server-side. CSV is the portable format.</p><div class="actions"><button class="primary" onclick="exportCSV()">Export CSV</button><button class="ghost" onclick="importCSV()">Import CSV</button><button class="danger" onclick="wipe()">Delete all data</button></div></div>
  <div class="card"><h2>What counts?</h2><p class="quote">Don't track every minute of your phone. Track things you're deliberately trying to become good at.</p><p class="muted">Skills like study, business, diet, singing or dancing can count when they're genuinely part of what you're trying to improve.</p></div>
  </div></section>`;
@@ -426,8 +449,10 @@ async function signOut(){await fetch("/api/auth/signout",{method:"POST",credenti
 async function deleteAccount(){if(!confirm("Permanently delete your account and all HOURS data? This cannot be undone."))return;const r=await fetch("/api/auth/delete-account",{method:"DELETE",credentials:"include"});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not delete account");if(window.__hoursEvents)window.__hoursEvents.close();state=defaultState();window.__hoursGuest=false;location.replace("/landing.html")}
 function setTheme(v){state.theme=v;persist();applyTheme();render()}
 function saveWishful(){state.wishfulDefault=Math.max(0,+$("#wd").value||0);persist();showToast("Saved.")}
+function setTimeFormat(v){state.timeFormat=v;render()}
+function saveClockSettings(){state.timeZone=$("#tz").value||"UTC";state.timeFormat=state.timeFormat==="24h"?"24h":"12h";persist();render();showToast("Clock settings saved.")}
 function exportCSV(){
- const rows=[["date","pursuit","category","start","end","duration_minutes","note","entry_type"],...state.entries.map(e=>[new Date(e.start).toISOString(),pfind(e.pursuitId)?.name||"",cfind(e.pursuitId,e.categoryId)?.name||"General",new Date(e.start).toISOString(),new Date(e.end).toISOString(),Math.round(e.duration/60),e.note||"",e.entryType||"manual"])];
+ const rows=[["date","pursuit","category","start","end","duration_minutes","inserted_at","note","entry_type"],...state.entries.map(e=>[new Date(e.start).toISOString(),pfind(e.pursuitId)?.name||"",cfind(e.pursuitId,e.categoryId)?.name||"General",new Date(e.start).toISOString(),new Date(e.end).toISOString(),Math.round(e.duration/60),new Date(e.insertedAt||e.start).toISOString(),e.note||"",e.entryType||"manual"])];
  const csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
  downloadBlob(csv,"hours-export.csv","text/csv");
 }
@@ -442,12 +467,55 @@ function importCSV(){
 }
 function finishImportCSV(payload,mode){
  const {rows,h}=payload,idx=x=>h.indexOf(x),nextState=mode==="replace"?defaultState():JSON.parse(JSON.stringify(state)),pMap=new Map(nextState.pursuits.map(p=>[p.name.toLowerCase(),p]));
- for(let i=1;i<rows.length;i++){const r=rows[i],pname=r[idx("pursuit")]||"Imported",cname=r[idx("category")]||"General",pkey=pname.toLowerCase();let p=pMap.get(pkey);if(!p){p={id:uid(),name:pname,description:"",target:0,wishful:nextState.wishfulDefault||8,categories:[],archived:false,createdAt:Date.now()};nextState.pursuits.push(p);pMap.set(pkey,p)}let c=null;if(cname&&cname!=="General"){c=p.categories.find(x=>x.name.toLowerCase()===cname.toLowerCase());if(!c){c={id:uid(),name:cname,target:0,archived:false,createdAt:Date.now()};p.categories.push(c)}}const start=Date.parse(r[idx("start")]||r[idx("date")]);const mins=Number(r[idx("duration_minutes")]);if(!Number.isFinite(start)||!Number.isFinite(mins)||mins<=0)continue;nextState.entries.push({id:uid(),pursuitId:p.id,categoryId:c?.id||null,start,end:start+mins*60000,duration:mins*60,note:r[idx("note")]||"",entryType:r[idx("entry_type")]||"manual"})}
+ for(let i=1;i<rows.length;i++){const r=rows[i],pname=r[idx("pursuit")]||"Imported",cname=r[idx("category")]||"General",pkey=pname.toLowerCase();let p=pMap.get(pkey);if(!p){p={id:uid(),name:pname,description:"",target:0,wishful:nextState.wishfulDefault||8,categories:[],archived:false,createdAt:Date.now()};nextState.pursuits.push(p);pMap.set(pkey,p)}let c=null;if(cname&&cname!=="General"){c=p.categories.find(x=>x.name.toLowerCase()===cname.toLowerCase());if(!c){c={id:uid(),name:cname,target:0,archived:false,createdAt:Date.now()};p.categories.push(c)}}const start=Date.parse(r[idx("start")]||r[idx("date")]);const mins=Number(r[idx("duration_minutes")]);if(!Number.isFinite(start)||!Number.isFinite(mins)||mins<=0)continue;nextState.entries.push({id:uid(),pursuitId:p.id,categoryId:c?.id||null,start,end:start+mins*60000,duration:mins*60,note:r[idx("note")]||"",entryType:r[idx("entry_type")]||"manual",insertedAt:Date.parse(r[idx("inserted_at")])||start})}
  state=nextState;persist();closeModal();render();showToast(mode==="add"?"CSV added.":"CSV imported as replacement.");
 }
 function downloadBlob(data,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
 function wipe(){if(confirm("Delete ALL logged data, pursuits and categories? This cannot be undone.")){state=defaultState();persist();render();showToast("Everything deleted.")}}
-function bindPage(){}
+function bindPage(){
+  if(currentPage!=='hours')return;
+  const grid=document.querySelector('#pursuitGrid');
+  if(!grid)return;
+  let draggedId=null;
+  $$('#pursuitGrid .pursuitCard').forEach(card=>{
+    card.addEventListener('dragstart',e=>{
+      const tag=e.target?.tagName;
+      if(['BUTTON','INPUT','TEXTAREA','SELECT','A'].includes(tag)){e.preventDefault();return}
+      draggedId=card.dataset.pursuitId;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed='move';
+      e.dataTransfer.setData('text/plain',draggedId);
+    });
+    card.addEventListener('dragend',()=>{
+      draggedId=null;
+      $$('#pursuitGrid .pursuitCard').forEach(x=>x.classList.remove('dragging','dragOver'));
+    });
+    card.addEventListener('dragover',e=>{
+      e.preventDefault();
+      if(draggedId&&draggedId!==card.dataset.pursuitId)card.classList.add('dragOver');
+      e.dataTransfer.dropEffect='move';
+    });
+    card.addEventListener('dragleave',()=>card.classList.remove('dragOver'));
+    card.addEventListener('drop',e=>{
+      e.preventDefault();
+      card.classList.remove('dragOver');
+      const from=draggedId||e.dataTransfer.getData('text/plain');
+      const to=card.dataset.pursuitId;
+      if(!from||!to||from===to)return;
+      const active=state.pursuits.filter(p=>!p.archived&&!p.deletedAt);
+      const fromIndex=state.pursuits.findIndex(p=>p.id===from);
+      const toIndex=state.pursuits.findIndex(p=>p.id===to);
+      if(fromIndex<0||toIndex<0)return;
+      const item=state.pursuits.splice(fromIndex,1)[0];
+      const newToIndex=state.pursuits.findIndex(p=>p.id===to);
+      state.pursuits.splice(newToIndex,0,item);
+      state.pursuitSort='custom';
+      persist();
+      render();
+      showToast('Pursuit order saved.');
+    });
+  });
+}
 
 boot();
 </script>
