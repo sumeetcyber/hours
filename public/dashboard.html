@@ -370,7 +370,7 @@ function openPursuit(id){
  const tracked=trackedAvg(id), eta=etaInfo(p,t);
  openModal(`<div class="row"><div><div class="sub">PURSUIT</div><h2>${esc(p.name)}</h2></div><button class="ghost" onclick="closeModal()">×</button></div>
  <div class="hours">${human(t)}</div>${target?`<div class="bar"><div class="fill ${pct>=100?"done":""}" style="width:${pct}%"></div></div><div class="muted">${human(t)} / ${target}h · ${pct.toFixed(1)}%</div>`:""}
- <div class="kpis"><div class="kpi"><div class="muted small">TRACKED AVG</div><div class="num">${tracked?avgPerDayText(tracked):"—"}</div></div><div class="kpi"><div class="muted small">REMAINING</div><div class="num">${target?Math.max(0,target-hours(t)).toFixed(1)+"h":"—"}</div></div></div>
+ <div class="kpis"><div class="kpi"><div class="muted small">TRACKED AVG</div><div class="num">${tracked?avgPerDayText(tracked):"—"}</div></div><div class="kpi"><div class="muted small">REMAINING</div><div class="num">${target?human(Math.max(0,(target-hours(t))*3600)):"—"}</div></div></div>
  ${target?`<div class="etaGrid" style="margin-top:12px"><div class="etaBox"><div class="muted small">WISHFUL ETA</div><strong>${eta.wish}</strong></div><div class="etaBox"><div class="muted small">TRACKED ETA</div><strong>${eta.tracked}</strong></div></div>`:""}
  <div class="sectionTitle">CATEGORIES</div>
  <div class="categoryTree">${p.categories.map(c=>categoryRow(p,c)).join("")||'<div class="muted">No categories yet.</div>'}</div>
