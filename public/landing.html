@@ -9,7 +9,23 @@
 *{box-sizing:border-box}
 :root{--bg:#f5f5f2;--panel:#fff;--text:#111;--muted:#73736d;--line:#deded8;--accent:#111;--accentText:#fff;--danger:#b42318}
 @media(prefers-color-scheme:dark){:root{--bg:#101010;--panel:#181818;--text:#f3f3f0;--muted:#999;--line:#333;--accent:#f2f2ee;--accentText:#111;--danger:#ff7777}}
-body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;display:grid;place-items:center;padding:24px}
+[data-landing-theme="system"]{--bg:#f5f5f2;--panel:#fff;--text:#111;--muted:#73736d;--line:#deded8;--accent:#111;--accentText:#fff;--danger:#b42318;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:light}
+@media(prefers-color-scheme:dark){[data-landing-theme="system"]{--bg:#101010;--panel:#181818;--text:#f3f3f0;--muted:#999;--line:#333;--accent:#f2f2ee;--accentText:#111;--danger:#ff7777;color-scheme:dark}}
+[data-landing-theme="light"]{--bg:#fff;--panel:#fff;--text:#111;--muted:#73736d;--line:#deded8;--accent:#111;--accentText:#fff;--danger:#b42318;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:light}
+[data-landing-theme="dark"]{--bg:#101010;--panel:#181818;--text:#f3f3f0;--muted:#999;--line:#333;--accent:#f2f2ee;--accentText:#111;--danger:#ff7777;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+[data-landing-theme="amoled"]{--bg:#000;--panel:#000;--text:#f3f3f0;--muted:#999;--line:#292929;--accent:#fff;--accentText:#000;--danger:#ff7777;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+[data-landing-theme="paper"]{--bg:#f7f4ec;--panel:#fffdf8;--text:#171717;--muted:#777164;--line:#d9d3c5;--accent:#171717;--accentText:#fff;--danger:#a43b30;--font:Georgia,"Times New Roman",serif}
+[data-landing-theme="midnight"]{--bg:#070b14;--panel:#0d1320;--text:#eef3ff;--muted:#8994aa;--line:#2a3549;--accent:#eef3ff;--accentText:#070b14;--danger:#ff8b8b;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+[data-landing-theme="graphite"]{--bg:#151515;--panel:#1d1d1d;--text:#f1f1f1;--muted:#999;--line:#3a3a3a;--accent:#f1f1f1;--accentText:#151515;--danger:#ff7777;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+[data-landing-theme="terminal"]{--bg:#030603;--panel:#071007;--text:#baffba;--muted:#669966;--line:#203520;--accent:#baffba;--accentText:#030603;--danger:#ff8888;--font:"JetBrains Mono","Cascadia Code",Consolas,monospace;color-scheme:dark}
+[data-landing-theme="matrix"]{--bg:#000;--panel:#020802;--text:#d9ffd9;--muted:#609060;--line:#173117;--accent:#d9ffd9;--accentText:#000;--danger:#ff8888;--font:"JetBrains Mono","Cascadia Code",Consolas,monospace;color-scheme:dark}
+[data-landing-theme="typewriter"]{--bg:#eee8da;--panel:#f7f1e4;--text:#29251f;--muted:#706759;--line:#c9bead;--accent:#29251f;--accentText:#f7f1e4;--danger:#a43b30;--font:"Courier New",monospace}
+[data-landing-theme="newspaper"]{--bg:#e8e4da;--panel:#f5f1e8;--text:#171411;--muted:#686158;--line:#c5beb0;--accent:#171411;--accentText:#f5f1e8;--danger:#9c3025;--font:Georgia,"Times New Roman",serif}
+[data-landing-theme="brutalist"]{--bg:#fff;--panel:#fff;--text:#000;--muted:#555;--line:#000;--accent:#000;--accentText:#fff;--danger:#b00000;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+[data-landing-theme="cyberpunk"]{--bg:#0a0610;--panel:#140b1b;--text:#fff;--muted:#bf8bd0;--line:#41214f;--accent:#fff;--accentText:#0a0610;--danger:#ff8bd8;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+[data-landing-theme="frost"]{--bg:#edf3f7;--panel:#fff;--text:#15212b;--muted:#6b7883;--line:#d0dbe2;--accent:#15212b;--accentText:#fff;--danger:#a43b30;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+[data-landing-theme="deep-blue"]{--bg:#07111d;--panel:#0c1826;--text:#edf6ff;--muted:#8194a9;--line:#26394d;--accent:#edf6ff;--accentText:#07111d;--danger:#ff8b8b;--font:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;color-scheme:dark}
+body{margin:0;min-height:100vh;background:var(--bg);color:var(--text);font:15px/1.45 var(--font);display:grid;place-items:center;padding:24px}
 .authBox{width:min(430px,100%);background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:30px;box-shadow:0 20px 70px #0001}
 h1{margin:0 0 7px;font-size:40px;letter-spacing:-2.5px}h2{margin:0 0 5px;letter-spacing:-.8px}.intro{color:var(--muted);margin:0 0 22px;font-size:14px}
 label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:12px;outline:none;font:inherit}input:focus{border-color:var(--text)}
@@ -17,10 +33,14 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
 .divider{display:flex;align-items:center;gap:10px;margin:19px 0;color:var(--muted);font-size:11px}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}
 .smallLink{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:0;cursor:pointer}.smallLink:hover{text-decoration:underline}.status{min-height:18px;margin-top:13px;color:var(--muted);font-size:12px}.error{min-height:18px;margin-top:8px;color:var(--danger);font-size:13px}
 .spinner{width:17px;height:17px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;vertical-align:-4px;animation:spin .7s linear infinite;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
+
+.themeBar{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:-8px 0 14px}.themeBtn{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:9px;padding:6px 9px;font:inherit;font-size:11px;cursor:pointer}.themeBtn.active{background:var(--accent);color:var(--accentText)}
+.passwordWrap{position:relative;display:flex;gap:7px}.passwordWrap input{flex:1}.holdReveal{width:94px;flex:0 0 94px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;font:inherit;font-size:11px;cursor:pointer;user-select:none;touch-action:none}.holdReveal:active{background:var(--line);color:var(--text)}
 </style>
 </head>
 <body>
 <main class="authBox">
+  <div class="themeBar" aria-label="Theme"><button class="themeBtn" data-theme="system" onclick="setLandingTheme('system')">SYSTEM</button><button class="themeBtn" data-theme="light" onclick="setLandingTheme('light')">LIGHT</button><button class="themeBtn" data-theme="dark" onclick="setLandingTheme('dark')">DARK</button><button class="themeBtn" data-theme="amoled" onclick="setLandingTheme('amoled')">AMOLED</button><button class="themeBtn" data-theme="paper" onclick="setLandingTheme('paper')">PAPER</button><button class="themeBtn" data-theme="midnight" onclick="setLandingTheme('midnight')">MIDNIGHT</button><button class="themeBtn" data-theme="graphite" onclick="setLandingTheme('graphite')">GRAPHITE</button><button class="themeBtn" data-theme="terminal" onclick="setLandingTheme('terminal')">TERMINAL</button><button class="themeBtn" data-theme="matrix" onclick="setLandingTheme('matrix')">MATRIX</button><button class="themeBtn" data-theme="typewriter" onclick="setLandingTheme('typewriter')">TYPEWRITER</button><button class="themeBtn" data-theme="newspaper" onclick="setLandingTheme('newspaper')">NEWSPAPER</button><button class="themeBtn" data-theme="brutalist" onclick="setLandingTheme('brutalist')">BRUTALIST</button><button class="themeBtn" data-theme="cyberpunk" onclick="setLandingTheme('cyberpunk')">CYBERPUNK</button><button class="themeBtn" data-theme="frost" onclick="setLandingTheme('frost')">FROST</button><button class="themeBtn" data-theme="deep-blue" onclick="setLandingTheme('deep-blue')">DEEP BLUE</button></div>
   <h1>hours.</h1>
   <p class="intro" id="intro">Log what you actually did.</p>
 
@@ -28,7 +48,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <h2>Reset password</h2>
     <p class="intro">Choose a new password for your account.</p>
     <label>New password</label>
-    <input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="••••••••">
+    <div class="passwordWrap"><input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="recoveryPassword">HOLD TO SHOW</button></div>
     <div class="actions"><button class="primary" id="recoveryBtn" onclick="completeRecovery()">SET PASSWORD</button></div>
   </section>
 
@@ -37,7 +57,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <label>Email</label>
     <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
-    <input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••">
+    <div class="passwordWrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="loginPassword">HOLD TO SHOW</button></div>
     <div class="actions">
       <button class="primary" id="loginBtn" onclick="login()">LOGIN</button>
       <button class="smallLink" onclick="resetPassword()">Reset password</button>
@@ -52,7 +72,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <label>Email</label>
     <input id="registerEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
-    <input id="registerPassword" type="password" autocomplete="new-password" placeholder="••••••••">
+    <div class="passwordWrap"><input id="registerPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="registerPassword">HOLD TO SHOW</button></div>
     <div class="actions">
       <button class="primary" id="registerBtn" onclick="sendRegistrationOTP()">SEND EMAIL OTP</button>
     </div>
@@ -76,7 +96,7 @@ function setBusy(b,text){
 }
 function clearMessages(){$("#error").textContent=""}
 function showLogin(message=""){$("#loginView").style.display="block";$("#registerView").style.display="none";clearMessages();if(message)$("#status").textContent=message;$("#loginEmail").focus()}
-function showRegister(){$("#loginView").style.display="none";$("#registerView").style.display="block";clearMessages();$("#status").textContent="We'll verify your email with an 8-digit OTP.";$("#registerEmail").focus()}
+function showRegister(){$("#loginView").style.display="none";$("#registerView").style.display="block";clearMessages();$("#status").textContent="We'll verify your email with an 8-digit OTP. Then you'll return to login.";$("#registerEmail").focus()}
 async function login(){
   const email=$("#loginEmail").value.trim().toLowerCase(),password=$("#loginPassword").value;clearMessages();
   if(!email||!password){$("#error").textContent="Enter your email and password.";return}
@@ -120,6 +140,27 @@ async function completeRecovery(){
   try{const r=await fetch("/api/auth/reset-password/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:accessToken,password})});const j=await r.json();if(!r.ok)throw new Error(j.error||"Could not update password");history.replaceState(null,"",location.pathname+location.search);$("#recoveryView").style.display="none";$("#loginView").style.display="block";$("#loginPassword").value="";$("#status").textContent="Password updated. Log in with your new password.";$("#loginEmail").focus()}catch(e){$("#error").textContent=e.message}finally{setBusy(false)}
 }
 
+
+function setLandingTheme(theme){
+  localStorage.setItem("hours_landing_theme",theme);
+  applyLandingTheme();
+}
+function applyLandingTheme(){
+  const saved=localStorage.getItem("hours_landing_theme")||"system";
+  document.documentElement.dataset.landingTheme=saved;
+  document.querySelectorAll(".themeBtn").forEach(b=>b.classList.toggle("active",b.dataset.theme===saved));
+}
+function bindHoldReveal(){
+  document.querySelectorAll(".holdReveal").forEach(btn=>{
+    const input=()=>document.getElementById(btn.dataset.target);
+    const show=()=>{const el=input();if(el)el.type="text"};
+    const hide=()=>{const el=input();if(el)el.type="password"};
+    ["mousedown","touchstart","pointerdown"].forEach(ev=>btn.addEventListener(ev,e=>{e.preventDefault();show()}));
+    ["mouseup","mouseleave","touchend","touchcancel","pointerup","pointercancel"].forEach(ev=>btn.addEventListener(ev,hide));
+  });
+}
+applyLandingTheme();
+bindHoldReveal();
 async function boot(){
   const hash=new URLSearchParams(location.hash.replace(/^#/,""));
   if(hash.get("type")==="recovery" && hash.get("access_token")){
