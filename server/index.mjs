@@ -64,7 +64,7 @@ function newGuestId() {
 }
 
 function defaultState() {
-  return { pursuits: [], entries: [], active: null, theme: 'system', wishfulDefault: 8 };
+  return { pursuits: [], entries: [], active: null, theme: 'system', wishfulDefault: 8, pursuitSort: 'custom', timeZone: '', timeFormat: '12h' };
 }
 
 function sanitizeState(s) {
@@ -74,7 +74,10 @@ function sanitizeState(s) {
     entries: Array.isArray(s.entries) ? JSON.parse(JSON.stringify(s.entries)) : [],
     active: s.active || null,
     theme: String(s.theme || 'system'),
-    wishfulDefault: Number(s.wishfulDefault || 0)
+    wishfulDefault: Number(s.wishfulDefault || 0),
+    pursuitSort: ['custom', 'az', 'za'].includes(s.pursuitSort) ? s.pursuitSort : 'custom',
+    timeZone: typeof s.timeZone === 'string' ? s.timeZone : '',
+    timeFormat: s.timeFormat === '24h' ? '24h' : '12h'
   };
 }
 
@@ -181,6 +184,9 @@ async function mergeGuestIntoAccount(userId, guestId) {
     }
     merged.theme = account.theme || guest.theme || 'system';
     merged.wishfulDefault = account.wishfulDefault || guest.wishfulDefault || 8;
+    merged.pursuitSort = account.pursuitSort || guest.pursuitSort || 'custom';
+    merged.timeZone = account.timeZone || guest.timeZone || 'UTC';
+    merged.timeFormat = account.timeFormat || guest.timeFormat || '12h';
     await writeAccountState(userId, merged);
   }
 
@@ -282,6 +288,8 @@ app.get('/api/guest', getGuest, async (req, res) => {
   }
 });
 
+app.get('/api/time', (req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ now: Date.now(), iso: new Date().toISOString() }); });
+
 app.get('/api/state', getIdentity, async (req, res) => {
   try {
     const state = req.user ? await readAccountState(req.user.id) : await readGuestState(req.guestId);
@@ -340,7 +348,7 @@ admin.channel('hours-server-state').on('postgres_changes', { event: '*', schema:
   }
 }).subscribe();
 
-app.use(express.static('public', { index: 'index.html', extensions: ['html'] }));
+app.use(express.static('public', { index: 'index.html', extensions: ['html'], setHeaders(res) { res.setHeader('Cache-Control', 'no-cache'); } }));
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found' }));
 app.use((err, req, res, next) => {
   console.error(err);
