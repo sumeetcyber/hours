@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23111'/%3E%3Cpath d='M16 18h32v7H16zm0 12h24v7H16zm0 12h32v7H16z' fill='white'/%3E%3C/svg%3E">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#111111">
+<title>hours. — dashboard</title>
+<style>
+*{box-sizing:border-box}
+:root{
+  --bg:#f5f5f2;--panel:#fff;--panel2:#f0f0ec;--text:#111;--muted:#73736d;
+  --line:#deded8;--accent:#111;--accentText:#fff;--good:#168447;--danger:#b52c2c;
+  --shadow:0 8px 30px rgba(0,0,0,.05)
+}
+body.dark{
+  --bg:#101010;--panel:#181818;--panel2:#222;--text:#f3f3f0;--muted:#999;
+  --line:#333;--accent:#f2f2ee;--accentText:#111;--good:#42c77a;--danger:#ff6666;
+  --shadow:none
+}
+body.paper{
+  --bg:#eee7d8;--panel:#f9f2e4;--panel2:#e9e0cf;--text:#211f1a;--muted:#776f61;
+  --line:#d6cbb9;--accent:#25231f;--accentText:#f9f2e4;--good:#247348;--danger:#a33b32;
+  --shadow:0 8px 30px rgba(80,60,30,.08)
+}
+body.midnight{
+  --bg:#090d14;--panel:#111824;--panel2:#182130;--text:#edf3ff;--muted:#8793a8;
+  --line:#263247;--accent:#edf3ff;--accentText:#0b1018;--good:#4cda91;--danger:#ff6d75;
+  --shadow:none
+}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;transition:.15s}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.45;cursor:not-allowed}
+.app{max-width:1180px;margin:auto;padding:22px 20px 70px}
+header{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:30px}
+.logo{font-size:28px;font-weight:900;letter-spacing:-1.5px}
+.nav{display:flex;gap:5px;flex-wrap:wrap}
+.nav button,.ghost{border:1px solid var(--line);background:transparent;color:var(--text);padding:9px 13px;border-radius:10px}
+.nav button.active,.primary{background:var(--accent);color:var(--accentText);border-color:var(--accent)}
+h1{font-size:42px;line-height:1.05;letter-spacing:-2.5px;margin:7px 0 8px}
+h2{letter-spacing:-.7px}.sub,.muted{color:var(--muted)}
+.small{font-size:12px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.card.tight{padding:15px}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.wrap{flex-wrap:wrap}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.primary,.danger{border:0;padding:11px 15px;border-radius:11px}
+.danger{background:var(--panel2);color:var(--danger)}
+.hours{font-size:38px;font-weight:900;letter-spacing:-2px}
+.bar{height:9px;background:var(--panel2);border-radius:99px;overflow:hidden;margin:13px 0 7px}
+.fill{height:100%;background:var(--accent);border-radius:99px;transition:width .25s}
+.fill.done{background:var(--good)}
+.done{color:var(--good);font-weight:800}
+.pill{padding:4px 8px;border-radius:99px;background:var(--panel2);font-size:12px}
+.timerCard{text-align:center;padding:32px 20px}
+.timer{font-size:74px;font-weight:900;letter-spacing:-5px;font-variant-numeric:tabular-nums;margin:12px 0}
+.timer.running{color:var(--good)}
+.timerSelects{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:720px;margin:20px auto 0}
+input,select,textarea{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:11px 12px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--text)}
+label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
+.tableWrap{overflow:auto}.table{width:100%;border-collapse:collapse}.table th,.table td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.list{display:grid;gap:8px}.listItem{padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:18px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:16px}.kpi .num{font-size:27px;font-weight:900}
+.hero{margin-bottom:18px}.heroLine{max-width:760px}
+.sectionTitle{margin:30px 0 12px;font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:800}
+.empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;align-items:center;justify-content:center;padding:18px;z-index:10}
+.modal.open{display:flex}.modalBox{width:min(560px,100%);background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:18px;padding:22px;max-height:90vh;overflow:auto}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--accent);color:var(--accentText);padding:12px 15px;border-radius:12px;display:none;z-index:20}
+.categoryTree{display:grid;gap:7px}.catRow{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.catIndent{margin-left:24px}.back{margin-bottom:15px}
+.quote{font-size:16px;line-height:1.6;max-width:700px}
+.etaGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.etaBox{background:var(--panel2);border-radius:14px;padding:15px}.etaBox strong{display:block;font-size:24px;margin-top:4px}
+.heat{display:grid;grid-template-columns:repeat(14,1fr);gap:4px}.cell{height:18px;border-radius:4px;background:var(--panel2)}.cell[data-level="1"]{opacity:.35}.cell[data-level="2"]{opacity:.55}.cell[data-level="3"]{opacity:.75}.cell[data-level="4"]{opacity:1}
+@media(max-width:700px){header{align-items:flex-start;flex-direction:column}.timer{font-size:52px}.timerSelects,.etaGrid{grid-template-columns:1fr}h1{font-size:35px}.app{padding:16px 13px 60px}}
+
+/* HOURS Plus: font-aware themes */
+.theme-font-preview{font-size:12px;opacity:.75;margin-top:4px}
+.theme-card{min-height:88px}
+[data-theme-font="mono"]{font-family:"JetBrains Mono","Cascadia Code","Consolas",monospace}
+[data-theme-font="serif"]{font-family:Georgia,"Times New Roman",serif}
+[data-theme-font="typewriter"]{font-family:"Courier New",monospace}
+[data-theme-font="sans"]{font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+
+</style>
+
+
+</head>
+<body>
+<div class="app">
+<header>
+  <div class="logo">hours.</div>
+  <nav class="nav">
+    <button data-page="hours">Hours</button>
+    <button data-page="categories">Categories</button>
+    <button data-page="history">History</button>
+    <button data-page="analytics">Analytics</button>
+    <button data-page="settings">Settings</button>
+  </nav>
+</header>
+<main id="view"></main>
+</div>
+<div class="modal" id="modal"><div class="modalBox" id="modalBox"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const defaultState=()=>({pursuits:[],entries:[],active:null,theme:"system",wishfulDefault:8});
+let state=defaultState();
+let currentPage="hours", timerInterval=null, saveQueue=Promise.resolve();
+
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+function persist(){
+  const snapshot=JSON.parse(JSON.stringify(state));
+  saveQueue=saveQueue.then(()=>fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(snapshot)})
+    .then(async r=>{if(r.status===401){location.replace("/landing.html");throw new Error("session expired")}if(!r.ok)throw new Error("save failed")})
+    .catch(e=>console.error(e)));
+  return saveQueue;
+}
+function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2)}
+function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+function secFmt(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0")}
+function human(sec){sec=Math.max(0,Math.round(sec));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);if(h)return `${h}h ${m}m`;if(m)return `${m}m`;return `${sec}s`}
+function hours(sec){return sec/3600}
+function pfind(id){return state.pursuits.find(p=>p.id===id)}
+function cfind(pid,id){return pfind(pid)?.categories.find(c=>c.id===id)}
+function total(pid,cid=null){return state.entries.filter(e=>e.pursuitId===pid&&(!cid||e.categoryId===cid)).reduce((a,e)=>a+e.duration,0)}
+function allTotal(){return state.entries.reduce((a,e)=>a+e.duration,0)}
+function showToast(t){const x=$("#toast");x.textContent=t;x.style.display="block";clearTimeout(showToast.t);showToast.t=setTimeout(()=>x.style.display="none",2200)}
+function openModal(html){$("#modalBox").innerHTML=html;$("#modal").classList.add("open")}
+function closeModal(){$("#modal").classList.remove("open")}
+$("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()});
+
+$$(".nav button").forEach(b=>b.onclick=()=>{currentPage=b.dataset.page;render()});
+
+async function boot(){
+  try{
+    const r=await fetch("/api/auth/me",{credentials:"include"});
+    if(r.ok){
+      const me=await r.json();
+      window.__hoursGuest=false;
+      window.__hoursEmail=me.user?.email||"";
+      const st=await fetch("/api/state",{credentials:"include"});
+      if(!st.ok)throw new Error("state unavailable");
+      state=await st.json();
+      render();
+      connectRealtime();
+      return;
+    }
+    const g=await fetch("/api/guest",{credentials:"include"});
+    if(!g.ok){ location.replace("/landing.html"); return; }
+    const gj=await g.json();
+    window.__hoursGuest=true;
+    state=gj.state||defaultState();
+    render();
+    connectRealtime();
+  }catch(e){
+    console.error(e);
+    location.replace("/landing.html");
+  }
+}
+function connectRealtime(){
+  if(window.__hoursEvents)window.__hoursEvents.close();
+  const es=new EventSource("/api/events");window.__hoursEvents=es;
+  es.addEventListener("state",async()=>{const r=await fetch("/api/state",{credentials:"include"});if(r.ok){state=await r.json();render()}});
+  es.onerror=()=>{};
+}
+async function finishRecovery(){
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+  if(hash.get("type")!=="recovery")return false;
+  const accessToken=hash.get("access_token");
+  if(!accessToken)return false;
+  openModal('<h2>Set new password</h2><label>New password</label><input id="newPassword" type="password" autocomplete="new-password"><div class="actions"><button class="primary" onclick="saveRecoveryPassword()">SET PASSWORD</button></div>');
+  window.__recoveryToken=accessToken;
+  history.replaceState(null,"",location.pathname+location.search);
+  return true;
+}
+async function saveRecoveryPassword(){
+  const password=$("#newPassword").value;
+  if(password.length<8)return showToast("Password must be at least 8 characters.");
+  const r=await fetch("/api/auth/reset-password/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:window.__recoveryToken,password})});
+  const j=await r.json();
+  if(!r.ok)return showToast(j.error||"Could not set password.");
+  window.__recoveryToken=null;closeModal();showToast("Password updated.");await boot();
+}
+function applyTheme(){
+  let t=state.theme;
+  if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";
+  document.body.className=t==="light"?"":t;
+}
+matchMedia("(prefers-color-scheme:dark)").addEventListener?.("change",()=>{if(state.theme==="system")applyTheme()});
+
+function render(){
+  applyTheme();
+  $$(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===currentPage));
+  const v=$("#view");
+  if(currentPage==="hours")v.innerHTML=hoursPage();
+  if(currentPage==="categories")v.innerHTML=categoriesPage();
+  if(currentPage==="history")v.innerHTML=historyPage();
+  if(currentPage==="analytics")v.innerHTML=analyticsPage();
+  if(currentPage==="settings")v.innerHTML=settingsPage();
+  bindPage();
+  if(state.active)startDisplayLoop();
+}
+function hoursPage(){
+  const active=state.active;
+  const activeBlock=active?`
+    <article class="card timerCard">
+      <div class="sub">RIGHT NOW</div>
+      <h2>${esc(pfind(active.pursuitId)?.name||"Unknown")} ${cfind(active.pursuitId,active.categoryId)?'· '+esc(cfind(active.pursuitId,active.categoryId).name):''}</h2>
+      <div id="liveTimer" class="timer running">${secFmt((Date.now()-active.start)/1000)}</div>
+      <div class="muted">Started ${new Date(active.start).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</div>
+      <div class="actions" style="justify-content:center"><button class="primary" onclick="stopTimer()">STOP TIMER</button></div>
+    </article>`:"";
+  return `<section class="hero">
+    <div class="heroLine"><div class="sub">HOURS</div><h1>Fuck goals. Measure the hours.</h1>
+    <p class="quote">If you want to level up, increase intentional time. If you don't, decrease it. No mandatory daily quota. Life isn't linear.</p></div>
+    ${activeBlock}
+    <div class="row wrap" style="margin-top:28px"><div><div class="sectionTitle" style="margin:0">YOUR PURSUITS</div><div class="muted">The things you're actually trying to get good at.</div></div>
+    <div class="actions" style="margin:0"><button class="primary" onclick="quickStart()">+ TRACK TIME</button><button class="ghost" onclick="addPursuit()">+ Pursuit</button></div></div>
+    <div class="grid" style="margin-top:14px">${state.pursuits.filter(p=>!p.archived).map(p=>pCard(p)).join("")||`<div class="card empty">Nothing here yet.<br><br><button class="primary" onclick="addPursuit()">+ Add pursuit</button></div>`}</div>
+    <div class="sectionTitle">PREVIOUS</div>
+    <div class="card">${previousBlock()}</div>
+  </section>`;
+}
+function pCard(p){
+ const t=total(p.id), target=p.target||0, pct=target?Math.min(100,t/(target*3600)*100):0;
+ return `<article class="card"><div class="row"><div><h2 style="margin:0">${esc(p.name)}</h2><div class="muted small">${p.categories.length} categor${p.categories.length===1?"y":"ies"}</div></div>${target&&t>=target*3600?'<span class="pill done">COMPLETED</span>':''}</div>
+ <div class="hours">${human(t)}</div>
+ ${target?`<div class="bar"><div class="fill ${t>=target*3600?"done":""}" style="width:${pct}%"></div></div><div class="row small muted"><span>${human(t)} / ${target}h</span><span>${pct.toFixed(0)}%</span></div>`:"<div class=\"muted small\">No target — just accumulate.</div>"}
+ <div class="actions"><button class="primary" onclick="startFor('${p.id}')">Start</button><button class="ghost" onclick="openPursuit('${p.id}')">Open</button><button class="ghost" onclick="editPursuit('${p.id}')">Edit</button></div></article>`;
+}
+function previousBlock(){
+ const es=[...state.entries].sort((a,b)=>b.start-a.start).slice(0,8);
+ if(!es.length)return `<div class="empty">No previous hours yet.</div>`;
+ return `<div class="list">${es.map(e=>`<div class="listItem row"><div><b>${esc(pfind(e.pursuitId)?.name||"Deleted pursuit")}</b><div class="muted small">${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")} · ${new Date(e.start).toLocaleDateString()}</div>${e.note?`<div class="small">${esc(e.note)}</div>`:""}</div><strong>${human(e.duration)}</strong></div>`).join("")}</div>`;
+}
+function quickStart(){if(!state.pursuits.filter(p=>!p.archived).length)return addPursuit();startFor(state.pursuits.find(p=>!p.archived).id)}
+function startFor(pid){
+ if(state.active){showToast("A timer is already running.");return}
+ const p=pfind(pid);
+ openModal(`<h2>Start timer</h2><label>Pursuit</label><input value="${esc(p.name)}" disabled><label>Category</label><select id="startCat"><option value="">General</option>${p.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><div class="actions"><button class="primary" onclick="beginTimer('${pid}')">START TIMER</button><button class="ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function beginTimer(pid){
+ if(state.active)return;
+ state.active={id:uid(),pursuitId:pid,categoryId:$("#startCat").value||null,start:Date.now()};
+ persist();closeModal();currentPage="hours";render();showToast("Timer started.");
+}
+function startDisplayLoop(){
+ clearInterval(timerInterval);
+ timerInterval=setInterval(()=>{
+   const x=$("#liveTimer");
+   if(x&&state.active)x.textContent=secFmt((Date.now()-state.active.start)/1000);
+ },250);
+}
+function stopTimer(){
+ if(!state.active)return;
+ const a=state.active,end=Date.now(),duration=Math.max(1,(end-a.start)/1000);
+ state.entries.push({id:a.id,pursuitId:a.pursuitId,categoryId:a.categoryId,start:a.start,end,duration,note:"",entryType:"timer"});
+ state.active=null;persist();clearInterval(timerInterval);render();showToast("Time saved.");
+}
+function addPursuit(){
+ openModal(`<h2>New pursuit</h2><label>Name</label><input id="pn" placeholder="Cybersecurity"><label>Description</label><textarea id="pd" placeholder="Optional"></textarea><label>Total target hours (optional)</label><input id="pt" type="number" min="0" placeholder="400"><label>Wishful daily average (optional)</label><input id="pa" type="number" min="0" step=".1" value="${state.wishfulDefault||8}"><div class="actions"><button class="primary" onclick="createP()">Create pursuit</button><button class="ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function createP(){
+ const name=$("#pn").value.trim();if(!name)return showToast("Name required.");
+ state.pursuits.push({id:uid(),name,description:$("#pd").value.trim(),target:+$("#pt").value||0,wishful:+$("#pa").value||state.wishfulDefault||8,categories:[],archived:false,createdAt:Date.now()});
+ persist();closeModal();render();showToast("Pursuit created.");
+}
+function editPursuit(id){
+ const p=pfind(id);
+ openModal(`<h2>Edit pursuit</h2><label>Name</label><input id="en" value="${esc(p.name)}"><label>Description</label><textarea id="ed">${esc(p.description||"")}</textarea><label>Target hours</label><input id="et" type="number" min="0" value="${p.target||""}"><label>Wishful daily average</label><input id="ea" type="number" min="0" step=".1" value="${p.wishful||8}"><div class="actions"><button class="primary" onclick="updateP('${id}')">Save</button><button class="danger" onclick="archiveP('${id}')">Archive</button></div>`);
+}
+function updateP(id){const p=pfind(id);p.name=$("#en").value.trim()||p.name;p.description=$("#ed").value.trim();p.target=Math.max(0,+$("#et").value||0);p.wishful=Math.max(0,+$("#ea").value||8);persist();closeModal();render()}
+function archiveP(id){pfind(id).archived=true;persist();closeModal();render();showToast("Archived.")}
+function openPursuit(id){
+ const p=pfind(id), t=total(id),target=p.target||0,pct=target?Math.min(100,t/(target*3600)*100):0;
+ const tracked=trackedAvg(id), eta=etaInfo(p,t);
+ openModal(`<div class="row"><div><div class="sub">PURSUIT</div><h2>${esc(p.name)}</h2></div><button class="ghost" onclick="closeModal()">×</button></div>
+ <div class="hours">${human(t)}</div>${target?`<div class="bar"><div class="fill ${pct>=100?"done":""}" style="width:${pct}%"></div></div><div class="muted">${human(t)} / ${target}h · ${pct.toFixed(1)}%</div>`:""}
+ <div class="kpis"><div class="kpi"><div class="muted small">TRACKED AVG</div><div class="num">${tracked?tracked.toFixed(1)+"h/day":"—"}</div></div><div class="kpi"><div class="muted small">REMAINING</div><div class="num">${target?Math.max(0,target-hours(t)).toFixed(1)+"h":"—"}</div></div></div>
+ ${target?`<div class="etaGrid" style="margin-top:12px"><div class="etaBox"><div class="muted small">WISHFUL ETA</div><strong>${eta.wish}</strong></div><div class="etaBox"><div class="muted small">TRACKED ETA</div><strong>${eta.tracked}</strong></div></div>`:""}
+ <div class="sectionTitle">CATEGORIES</div>
+ <div class="categoryTree">${p.categories.map(c=>categoryRow(p,c)).join("")||'<div class="muted">No categories yet.</div>'}</div>
+ <div class="actions"><button class="primary" onclick="startFor('${id}')">Start timer</button><button class="ghost" onclick="manualFor('${id}')">Add hours</button><button class="ghost" onclick="addCategory('${id}')">+ Category</button></div>`);
+}
+function categoryRow(p,c){
+ const t=total(p.id,c.id),target=c.target||0,pct=target?Math.min(100,t/(target*3600)*100):0;
+ return `<div class="catRow"><div style="flex:1"><div class="row"><span>${esc(c.name)}</span><span>${human(t)}${target?" / "+c.target+"h":""}</span></div>${target?`<div class="bar"><div class="fill ${t>=target*3600?"done":""}" style="width:${pct}%"></div></div>`:""}</div><button class="ghost" onclick="editCategory('${p.id}','${c.id}')">Edit</button></div>`;
+}
+function addCategory(pid){
+ openModal(`<h2>New category</h2><label>Name</label><input id="cn" placeholder="Nmap"><label>Target hours (optional)</label><input id="ct" type="number" min="0"><div class="actions"><button class="primary" onclick="createC('${pid}')">Create</button><button class="ghost" onclick="closeModal()">Cancel</button></div>`);
+}
+function createC(pid){const n=$("#cn").value.trim();if(!n)return showToast("Name required.");pfind(pid).categories.push({id:uid(),name:n,target:+$("#ct").value||0,archived:false});persist();closeModal();openPursuit(pid)}
+function editCategory(pid,cid){
+ const c=cfind(pid,cid);
+ openModal(`<h2>Edit category</h2><label>Name</label><input id="ecn" value="${esc(c.name)}"><label>Target hours</label><input id="ect" type="number" min="0" value="${c.target||""}"><div class="actions"><button class="primary" onclick="updateC('${pid}','${cid}')">Save</button><button class="danger" onclick="archiveC('${pid}','${cid}')">Archive</button></div>`);
+}
+function updateC(pid,cid){const c=cfind(pid,cid);c.name=$("#ecn").value.trim()||c.name;c.target=Math.max(0,+$("#ect").value||0);persist();closeModal();openPursuit(pid)}
+function archiveC(pid,cid){cfind(pid,cid).archived=true;persist();closeModal();openPursuit(pid)}
+function manualFor(pid){
+ const p=pfind(pid);
+ openModal(`<h2>Add hours</h2><label>Pursuit</label><input value="${esc(p.name)}" disabled><label>Category</label><select id="mc"><option value="">General</option>${p.categories.filter(c=>!c.archived).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select><label>Date</label><input id="mdate" type="date" value="${new Date().toISOString().slice(0,10)}"><label>Duration (minutes)</label><input id="mins" type="number" min="1" value="60"><label>Note</label><textarea id="mnote" placeholder="What did you actually do?"></textarea><div class="actions"><button class="primary" onclick="saveManual('${pid}')">SAVE HOURS</button></div>`);
+}
+function saveManual(pid){
+ const mins=+$("#mins").value;if(!mins||mins<1)return showToast("Enter a valid duration.");
+ const d=$("#mdate").value, start=new Date(d+"T12:00:00").getTime();
+ state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#mc").value||null,start,end:start+mins*60000,duration:mins*60,note:$("#mnote").value.trim(),entryType:"manual"});
+ persist();closeModal();render();showToast("Hours added.");
+}
+function historyPage(){
+ const es=[...state.entries].sort((a,b)=>b.start-a.start);
+ return `<section><div class="row wrap"><div><div class="sub">PREVIOUS</div><h1>Hours you've already put in.</h1></div><button class="primary" onclick="quickStart()">+ Track time</button></div>
+ <div class="card" style="margin-top:22px"><div class="row wrap"><div class="muted">${es.length} entries · ${human(allTotal())} total</div><button class="ghost" onclick="manualPicker()">+ Add manual time</button></div><div class="tableWrap" style="margin-top:12px">${es.length?`<table class="table"><thead><tr><th>Date</th><th>Pursuit</th><th>Category</th><th>Duration</th><th>Type</th><th>Note</th><th></th></tr></thead><tbody>${es.map(e=>`<tr><td>${new Date(e.start).toLocaleDateString()}</td><td>${esc(pfind(e.pursuitId)?.name||"Deleted")}</td><td>${esc(cfind(e.pursuitId,e.categoryId)?.name||"General")}</td><td><b>${human(e.duration)}</b></td><td>${e.entryType}</td><td>${esc(e.note||"")}</td><td><button class="ghost" onclick="editEntry('${e.id}')">Edit</button> <button class="ghost" onclick="deleteEntry('${e.id}')">×</button></td></tr>`).join("")}</tbody></table>`:`<div class="empty">No hours logged yet.</div>`}</div></div></section>`;
+}
+function manualPicker(){
+ if(!state.pursuits.filter(p=>!p.archived).length)return addPursuit();
+ const opts=state.pursuits.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
+ openModal(`<h2>Add hours</h2><label>Pursuit</label><select id="picker" onchange="pickerCats()">${opts}</select><div id="pickerCats"></div><label>Date</label><input id="pdate" type="date" value="${new Date().toISOString().slice(0,10)}"><label>Duration (minutes)</label><input id="pmins" type="number" min="1" value="60"><label>Note</label><textarea id="pnote"></textarea><div class="actions"><button class="primary" onclick="savePicker()">Save</button></div>`);
+ pickerCats();
+}
+function pickerCats(){const p=pfind($("#picker").value);$("#pickerCats").innerHTML=`<label>Category</label><select id="pcat"><option value="">General</option>${p.categories.filter(c=>!c.archived).map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>`}
+function savePicker(){const pid=$("#picker").value,mins=+$("#pmins").value;if(!mins||mins<1)return showToast("Invalid duration.");const st=new Date($("#pdate").value+"T12:00:00").getTime();state.entries.push({id:uid(),pursuitId:pid,categoryId:$("#pcat").value||null,start:st,end:st+mins*60000,duration:mins*60,note:$("#pnote").value.trim(),entryType:"manual"});persist();closeModal();render();showToast("Hours added.")}
+function editEntry(id){
+ const e=state.entries.find(x=>x.id===id);
+ openModal(`<h2>Edit time entry</h2><label>Duration (minutes)</label><input id="ee" type="number" min="1" value="${Math.max(1,Math.round(e.duration/60))}"><label>Note</label><textarea id="enote">${esc(e.note||"")}</textarea><div class="actions"><button class="primary" onclick="saveEntry('${id}')">Save</button></div>`);
+}
+function saveEntry(id){const e=state.entries.find(x=>x.id===id),mins=+$("#ee").value;if(!mins||mins<1)return showToast("Invalid duration.");e.duration=mins*60;e.end=e.start+e.duration*1000;e.note=$("#enote").value.trim();persist();closeModal();render()}
+function deleteEntry(id){if(confirm("Delete this time entry?")){state.entries=state.entries.filter(e=>e.id!==id);persist();render();showToast("Deleted.")}}
+function categoriesPage(){
+ const ps=state.pursuits.filter(p=>!p.archived);
+ return `<section><div class="sub">CATEGORIES</div><h1>See the actual breakdown.</h1><p class="muted">Pursuit → category → hours. Targets are optional.</p>
+ <div class="grid" style="margin-top:22px">${ps.map(p=>`<article class="card"><div class="row"><h2 style="margin:0">${esc(p.name)}</h2><button class="ghost" onclick="addCategory('${p.id}')">+ Category</button></div><div class="sectionTitle" style="margin-top:18px">${p.categories.length?"BREAKDOWN":"EMPTY"}</div>${p.categories.filter(c=>!c.archived).map(c=>{const t=total(p.id,c.id);return `<div class="catRow"><div style="flex:1"><div class="row"><b>${esc(c.name)}</b><span>${human(t)}${c.target?" / "+c.target+"h":""}</span></div>${c.target?`<div class="bar"><div class="fill ${t>=c.target*3600?"done":""}" style="width:${Math.min(100,t/(c.target*3600)*100)}%"></div></div>`:""}</div><button class="ghost" onclick="editCategory('${p.id}','${c.id}')">Edit</button></div>`}).join("")||'<div class="muted">No categories yet.</div>'}<div class="sectionTitle">TOTAL</div><div class="hours">${human(total(p.id))}</div></article>`).join("")||`<div class="card empty">Create a pursuit first.</div>`}</div></section>`;
+}
+function trackedAvg(pid){
+ const es=state.entries.filter(e=>e.pursuitId===pid);
+ if(!es.length)return 0;
+ const first=Math.min(...es.map(e=>e.start)),days=Math.max(1,Math.ceil((Date.now()-first)/86400000));
+ return hours(total(pid))/days;
+}
+function etaInfo(p,t){
+ if(!p.target)return {wish:"—",tracked:"—"};
+ const rem=Math.max(0,p.target-hours(t)),w=+p.wishful||0,ta=trackedAvg(p.id);
+ const date=(rate)=>{if(rem<=0)return"COMPLETED";if(!rate)return"Not enough data";const d=Math.ceil(rem/rate),x=new Date(Date.now()+d*86400000);return x.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})};
+ return {wish:date(w),tracked:date(ta)};
+}
+function analyticsPage(){
+ const totalS=allTotal(), first=state.entries.length?Math.min(...state.entries.map(e=>e.start)):0, days=first?Math.max(1,Math.ceil((Date.now()-first)/86400000)):0;
+ const avg=days?hours(totalS)/days:0;
+ const ranked=[...state.pursuits].filter(p=>!p.archived).sort((a,b)=>total(b.id)-total(a.id));
+ const last28=[];for(let i=27;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const a=d.getTime(),b=a+86400000;last28.push(state.entries.filter(e=>e.start>=a&&e.start<b).reduce((s,e)=>s+e.duration,0))}
+ return `<section><div class="sub">ANALYTICS</div><h1>Where did the hours go?</h1>
+ <div class="kpis"><div class="kpi"><div class="muted small">TOTAL</div><div class="num">${human(totalS)}</div></div><div class="kpi"><div class="muted small">TRACKED AVG / DAY</div><div class="num">${avg?avg.toFixed(1)+"h":"—"}</div></div><div class="kpi"><div class="muted small">ENTRIES</div><div class="num">${state.entries.length}</div></div></div>
+ <div class="card" style="margin-top:14px"><h2>Last 28 days</h2><div class="heat">${last28.map(s=>`<div class="cell" data-level="${s?Math.min(4,Math.ceil(hours(s)/2)):0}" title="${human(s)}"></div>`).join("")}</div><div class="row small muted" style="margin-top:8px"><span>less</span><span>more</span></div></div>
+ <div class="card" style="margin-top:14px"><h2>By pursuit</h2>${ranked.map(p=>{const t=total(p.id),pct=totalS?t/totalS*100:0;return `<div style="margin:18px 0"><div class="row"><b>${esc(p.name)}</b><span>${human(t)} · ${pct.toFixed(0)}%</span></div><div class="bar"><div class="fill" style="width:${pct}%"></div></div></div>`}).join("")||'<div class="muted">No data yet.</div>'}</div></section>`;
+}
+function settingsPage(){
+ return `<section><div class="sub">SETTINGS</div><h1>Keep it simple.</h1><div class="grid" style="margin-top:22px">
+ <div class="card"><h2>Account</h2><p class="muted">${window.__hoursGuest?"You are using HOURS without an account. Your data is server-stored behind this browser's guest cookie.":"Signed in. Your HOURS data is tied to your account."}</p>${window.__hoursGuest?'<div class="actions"><button class="primary" onclick="claimGuest()">CREATE / SIGN IN TO SYNC THIS DATA</button></div>':'<label>New password</label><input id="accountPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters"><div class="actions"><button class="ghost" onclick="setAccountPassword()">SET PASSWORD</button><button class="ghost" onclick="resetCurrentPassword()">RESET PASSWORD</button><button class="ghost" onclick="signOut()">SIGN OUT</button></div><div class="actions"><button class="danger" onclick="deleteAccount()">PERMANENTLY DELETE ACCOUNT</button></div>'}</div>
+ <div class="card"><h2>Theme</h2><label>Appearance</label><select id="theme" onchange="setTheme(this.value)"><option value="system" ${state.theme==="system"?"selected":""}>System</option><option value="light" ${state.theme==="light"?"selected":""}>Light</option><option value="dark" ${state.theme==="dark"?"selected":""}>Dark</option><option value="paper" ${state.theme==="paper"?"selected":""}>Paper</option><option value="midnight" ${state.theme==="midnight"?"selected":""}>Midnight</option></select></div>
+ <div class="card"><h2>Wishful average</h2><label>Default hours/day for new pursuits</label><input id="wd" type="number" min="0" step=".1" value="${state.wishfulDefault}"><div class="actions"><button class="primary" onclick="saveWishful()">Save</button></div></div>
+ <div class="card"><h2>Data</h2><p class="muted">All persistent data is server-side. CSV is the portable format.</p><div class="actions"><button class="primary" onclick="exportCSV()">Export CSV</button><button class="ghost" onclick="importCSV()">Import CSV</button><button class="danger" onclick="wipe()">Delete all data</button></div></div>
+ <div class="card"><h2>What counts?</h2><p class="quote">Don't track every minute of your phone. Track things you're deliberately trying to become good at.</p><p class="muted">Skills like study, business, diet, singing or dancing can count when they're genuinely part of what you're trying to improve.</p></div>
+ </div></section>`;
+}
+function claimGuest(){openModal('<h2>Sync guest data</h2><p class="muted">Enter an email and verify an OTP. Your guest data will be moved into the account.</p><label>Email</label><input id="claimEmail" type="email" placeholder="you@example.com"><div class="actions"><button class="primary" onclick="sendClaimOTP()">SEND OTP</button></div><div id="claimOTPBox"></div>')}
+async function sendClaimOTP(){const email=$("#claimEmail").value.trim().toLowerCase();if(!email)return showToast("Email required.");const r=await fetch("/api/auth/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not send OTP");$("#claimOTPBox").innerHTML='<label>8-digit OTP</label><input id="claimOTP" inputmode="numeric" maxlength="8"><div class="actions"><button class="primary" onclick="verifyClaimOTP()">VERIFY & SYNC</button></div>';}
+async function verifyClaimOTP(){const email=$("#claimEmail").value.trim().toLowerCase(),token=$("#claimOTP").value.trim();const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,token})});const j=await r.json();if(!r.ok)return showToast(j.error||"Invalid OTP");window.__hoursGuest=false;closeModal();await boot();showToast("Guest data synced to your account.")}
+async function setAccountPassword(){const password=$("#accountPassword").value;if(password.length<8)return showToast("Password must be at least 8 characters.");const r=await fetch("/api/auth/set-password",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({password})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not set password");showToast("Password set.")}
+async function resetCurrentPassword(){const email=window.__hoursEmail||"";if(!email)return showToast("Account email unavailable.");const r=await fetch("/api/auth/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not send reset email");showToast("Password reset email sent.")}
+async function signOut(){await fetch("/api/auth/signout",{method:"POST",credentials:"include"});if(window.__hoursEvents)window.__hoursEvents.close();location.replace("/landing.html")}
+async function deleteAccount(){if(!confirm("Permanently delete your account and all HOURS data? This cannot be undone."))return;const r=await fetch("/api/auth/delete-account",{method:"DELETE",credentials:"include"});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not delete account");if(window.__hoursEvents)window.__hoursEvents.close();state=defaultState();window.__hoursGuest=false;location.replace("/landing.html")}
+function setTheme(v){state.theme=v;persist();applyTheme();render()}
+function saveWishful(){state.wishfulDefault=Math.max(0,+$("#wd").value||0);persist();showToast("Saved.")}
+function exportCSV(){
+ const rows=[["date","pursuit","category","start","end","duration_minutes","note","entry_type"],...state.entries.map(e=>[new Date(e.start).toISOString(),pfind(e.pursuitId)?.name||"",cfind(e.pursuitId,e.categoryId)?.name||"General",new Date(e.start).toISOString(),new Date(e.end).toISOString(),Math.round(e.duration/60),e.note||"",e.entryType||"manual"])];
+ const csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
+ downloadBlob(csv,"hours-export.csv","text/csv");
+}
+function parseCSV(text){
+ const rows=[];let row=[],cell="",quote=false;
+ for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'){if(quote&&n==='"'){cell+='"';i++}else quote=!quote}else if(c===','&&!quote){row.push(cell);cell=""}else if((c==='\n'||c==='\r')&&!quote){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>x!==""))rows.push(row);row=[];cell=""}else cell+=c}if(cell!==""||row.length){row.push(cell);if(row.some(x=>x!==""))rows.push(row)}return rows;
+}
+function importCSV(){
+ const input=document.createElement("input");input.type="file";input.accept=".csv,text/csv";
+ input.onchange=async()=>{const f=input.files[0];if(!f)return;try{const rows=parseCSV(await f.text());if(rows.length<2)throw new Error("empty");const h=rows[0].map(x=>x.trim().toLowerCase());const idx=x=>h.indexOf(x);if(idx("pursuit")<0||idx("start")<0||idx("duration_minutes")<0)throw new Error("columns");
+ openModal(`<h2>Import CSV</h2><p class="muted">${rows.length-1} entries found.</p><div class="actions"><button class="primary" onclick="finishImportCSV(window.__importRows,'add')">ADD TO CURRENT DATA</button><button class="ghost" onclick="finishImportCSV(window.__importRows,'replace')">REPLACE EVERYTHING</button></div>`);window.__importRows={rows,h};}catch{showToast("Invalid CSV export.")}};input.click();
+}
+function finishImportCSV(payload,mode){
+ const {rows,h}=payload,idx=x=>h.indexOf(x),nextState=mode==="replace"?defaultState():JSON.parse(JSON.stringify(state)),pMap=new Map(nextState.pursuits.map(p=>[p.name.toLowerCase(),p]));
+ for(let i=1;i<rows.length;i++){const r=rows[i],pname=r[idx("pursuit")]||"Imported",cname=r[idx("category")]||"General",pkey=pname.toLowerCase();let p=pMap.get(pkey);if(!p){p={id:uid(),name:pname,description:"",target:0,wishful:nextState.wishfulDefault||8,categories:[],archived:false,createdAt:Date.now()};nextState.pursuits.push(p);pMap.set(pkey,p)}let c=null;if(cname&&cname!=="General"){c=p.categories.find(x=>x.name.toLowerCase()===cname.toLowerCase());if(!c){c={id:uid(),name:cname,target:0,archived:false,createdAt:Date.now()};p.categories.push(c)}}const start=Date.parse(r[idx("start")]||r[idx("date")]);const mins=Number(r[idx("duration_minutes")]);if(!Number.isFinite(start)||!Number.isFinite(mins)||mins<=0)continue;nextState.entries.push({id:uid(),pursuitId:p.id,categoryId:c?.id||null,start,end:start+mins*60000,duration:mins*60,note:r[idx("note")]||"",entryType:r[idx("entry_type")]||"manual"})}
+ state=nextState;persist();closeModal();render();showToast(mode==="add"?"CSV added.":"CSV imported as replacement.");
+}
+function downloadBlob(data,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function wipe(){if(confirm("Delete ALL logged data, pursuits and categories? This cannot be undone.")){state=defaultState();persist();render();showToast("Everything deleted.")}}
+function bindPage(){}
+
+boot();
+</script>
+
+<script>
+/* HOURS Plus enhancements — layered on top of the previous design */
+(function(){
+  const FONT_THEMES = {
+    "Paper Classic": ["#f7f4ec","#fffdf8","#eee9dc","#171717","#777164","#d9d3c5","serif"],
+    "AMOLED": ["#000000","#000000","#090909","#ffffff","#8b8b8b","#252525","sans"],
+    "Midnight": ["#070b14","#0d1320","#151d2d","#eef3ff","#8994aa","#2a3549","sans"],
+    "Graphite": ["#151515","#1d1d1d","#272727","#f1f1f1","#999","#3a3a3a","sans"],
+    "Terminal": ["#030603","#071007","#0c160c","#baffba","#669966","#203520","mono"],
+    "Matrix": ["#000000","#020802","#061006","#d9ffd9","#609060","#173117","mono"],
+    "Typewriter": ["#eee8da","#f7f1e4","#dfd6c5","#29251f","#706759","#c9bead","typewriter"],
+    "Newspaper": ["#e8e4da","#f5f1e8","#ddd7ca","#171411","#686158","#c5beb0","serif"],
+    "Brutalist": ["#ffffff","#ffffff","#eeeeee","#000000","#555555","#000000","sans"],
+    "Cyberpunk": ["#0a0610","#140b1b","#21102c","#ffffff","#bf8bd0","#41214f","sans"],
+    "Frost": ["#edf3f7","#ffffff","#e2eaf0","#15212b","#6b7883","#d0dbe2","sans"],
+    "Deep Blue": ["#07111d","#0c1826","#142333","#edf6ff","#8194a9","#26394d","sans"]
+  };
+
+  function cssTheme(t){
+    const r=document.documentElement;
+    r.style.setProperty("--bg",t[0]); r.style.setProperty("--surface",t[1]);
+    r.style.setProperty("--surface-2",t[2]); r.style.setProperty("--text",t[3]);
+    r.style.setProperty("--muted",t[4]); r.style.setProperty("--border",t[5]);
+    const font=t[6]==="mono" ? '"JetBrains Mono","Cascadia Code","Consolas",monospace'
+      : t[6]==="serif" ? 'Georgia,"Times New Roman",serif'
+      : t[6]==="typewriter" ? '"Courier New",monospace'
+      : 'Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
+    r.style.setProperty("--font",font);
+    document.body.style.fontFamily=font;
+  }
+
+  // If the previous app exposes its theme object, leave it intact. These are
+  // additive themes and never replace existing functionality.
+  window.HOURS_PLUS_THEMES=FONT_THEMES;
+
+  window.HOURS_ACTIVITY_TRANSFER=function(logs, activities, pursuits){
+    const direct=new Map();
+    for(const l of logs||[]) direct.set(l.activityId,(direct.get(l.activityId)||0)+Number(l.duration||0));
+
+    const children=new Map();
+    for(const a of activities||[]){
+      if(!children.has(a.parentActivityId||a.parent||null)) children.set(a.parentActivityId||a.parent||null,[]);
+      children.get(a.parentActivityId||a.parent||null).push(a);
+    }
+    const memo=new Map();
+    function roll(id){
+      if(memo.has(id)) return memo.get(id);
+      let total=direct.get(id)||0;
+      for(const c of children.get(id)||[]) total+=roll(c.id);
+      memo.set(id,total); return total;
+    }
+    const result={};
+    for(const a of activities||[]) result[a.id]=roll(a.id);
+    for(const p of pursuits||[]){
+      result["pursuit:"+p.id]=(activities||[])
+        .filter(a=>a.pursuitId===p.id || a.p===p.id)
+        .filter(a=>!(a.parentActivityId||a.parent))
+        .reduce((s,a)=>s+roll(a.id),0);
+    }
+    return result;
+  };
+
+  // Remove hourly-slot language from old calendar controls while preserving
+  // history and date-based views.
+  function cleanClockLabels(){
+    document.querySelectorAll("button,option,h1,h2,h3,label").forEach(el=>{
+      if(el.textContent.trim()==="Hour") el.textContent="Logged";
+    });
+  }
+  const obs=new MutationObserver(cleanClockLabels);
+  obs.observe(document.body,{childList:true,subtree:true});
+  setTimeout(cleanClockLabels,50);
+})();
+</script>
+
+</body>
+</html>
