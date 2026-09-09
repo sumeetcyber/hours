@@ -34,13 +34,12 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
 .smallLink{border:0;background:none;color:var(--muted);font:inherit;font-size:12px;padding:0;cursor:pointer}.smallLink:hover{text-decoration:underline}.status{min-height:18px;margin-top:13px;color:var(--muted);font-size:12px}.error{min-height:18px;margin-top:8px;color:var(--danger);font-size:13px}
 .spinner{width:17px;height:17px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;vertical-align:-4px;animation:spin .7s linear infinite;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}
 
-.themeBar{display:flex;justify-content:flex-end;gap:6px;flex-wrap:wrap;margin:-8px 0 14px}.themeBtn{border:1px solid var(--line);background:transparent;color:var(--text);border-radius:9px;padding:6px 9px;font:inherit;font-size:11px;cursor:pointer}.themeBtn.active{background:var(--accent);color:var(--accentText)}
-.passwordWrap{position:relative;display:flex;gap:7px}.passwordWrap input{flex:1}.holdReveal{width:94px;flex:0 0 94px;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:10px;font:inherit;font-size:11px;cursor:pointer;user-select:none;touch-action:none}.holdReveal:active{background:var(--line);color:var(--text)}
+.themeBar{display:flex;align-items:center;gap:8px;margin:-8px 0 14px}.themeLabel{font-size:12px;color:var(--muted);white-space:nowrap}.themeSelect{min-width:170px;max-width:100%;border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:9px;padding:7px 30px 7px 9px;font:inherit;font-size:12px;cursor:pointer}.passwordWrap{position:relative;display:flex;gap:7px}.passwordWrap input{flex:1}.eyeReveal{width:42px;flex:0 0 42px;border:1px solid var(--line);background:transparent;color:var(--text);border-radius:10px;font-size:17px;line-height:1;cursor:pointer;display:grid;place-items:center}
 </style>
 </head>
 <body>
 <main class="authBox">
-  <div class="themeBar" aria-label="Theme"><button class="themeBtn" data-theme="system" onclick="setLandingTheme('system')">SYSTEM</button><button class="themeBtn" data-theme="light" onclick="setLandingTheme('light')">LIGHT</button><button class="themeBtn" data-theme="dark" onclick="setLandingTheme('dark')">DARK</button><button class="themeBtn" data-theme="amoled" onclick="setLandingTheme('amoled')">AMOLED</button><button class="themeBtn" data-theme="paper" onclick="setLandingTheme('paper')">PAPER</button><button class="themeBtn" data-theme="midnight" onclick="setLandingTheme('midnight')">MIDNIGHT</button><button class="themeBtn" data-theme="graphite" onclick="setLandingTheme('graphite')">GRAPHITE</button><button class="themeBtn" data-theme="terminal" onclick="setLandingTheme('terminal')">TERMINAL</button><button class="themeBtn" data-theme="matrix" onclick="setLandingTheme('matrix')">MATRIX</button><button class="themeBtn" data-theme="typewriter" onclick="setLandingTheme('typewriter')">TYPEWRITER</button><button class="themeBtn" data-theme="newspaper" onclick="setLandingTheme('newspaper')">NEWSPAPER</button><button class="themeBtn" data-theme="brutalist" onclick="setLandingTheme('brutalist')">BRUTALIST</button><button class="themeBtn" data-theme="cyberpunk" onclick="setLandingTheme('cyberpunk')">CYBERPUNK</button><button class="themeBtn" data-theme="frost" onclick="setLandingTheme('frost')">FROST</button><button class="themeBtn" data-theme="deep-blue" onclick="setLandingTheme('deep-blue')">DEEP BLUE</button></div>
+  <div class="themeBar"><label class="themeLabel" for="landingThemeSelect">Theme:</label><select id="landingThemeSelect" class="themeSelect" aria-label="Theme" onchange="setLandingTheme(this.value)"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option><option value="amoled">AMOLED</option><option value="paper">Paper</option><option value="midnight">Midnight</option><option value="graphite">Graphite</option><option value="terminal">Terminal</option><option value="matrix">Matrix</option><option value="typewriter">Typewriter</option><option value="newspaper">Newspaper</option><option value="brutalist">Brutalist</option><option value="cyberpunk">Cyberpunk</option><option value="frost">Frost</option><option value="deep-blue">Deep Blue</option></select></div>
   <h1>hours.</h1>
   <p class="intro" id="intro">Log what you actually did.</p>
 
@@ -48,7 +47,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <h2>Reset password</h2>
     <p class="intro">Choose a new password for your account.</p>
     <label>New password</label>
-    <div class="passwordWrap"><input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="recoveryPassword">HOLD TO SHOW</button></div>
+    <div class="passwordWrap"><input id="recoveryPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="eyeReveal" type="button" data-target="recoveryPassword" aria-label="Show password">👁️</button></div>
     <div class="actions"><button class="primary" id="recoveryBtn" onclick="completeRecovery()">SET PASSWORD</button></div>
   </section>
 
@@ -57,7 +56,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <label>Email</label>
     <input id="loginEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
-    <div class="passwordWrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="loginPassword">HOLD TO SHOW</button></div>
+    <div class="passwordWrap"><input id="loginPassword" type="password" autocomplete="current-password" placeholder="••••••••"><button class="eyeReveal" type="button" data-target="loginPassword" aria-label="Show password">👁️</button></div>
     <div class="actions">
       <button class="primary" id="loginBtn" onclick="login()">LOGIN</button>
       <button class="smallLink" onclick="resetPassword()">Reset password</button>
@@ -72,7 +71,7 @@ label{display:block;color:var(--muted);font-size:12px;margin:15px 0 6px}input{wi
     <label>Email</label>
     <input id="registerEmail" type="email" autocomplete="email" placeholder="you@example.com">
     <label>Password</label>
-    <div class="passwordWrap"><input id="registerPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="holdReveal" type="button" data-target="registerPassword">HOLD TO SHOW</button></div>
+    <div class="passwordWrap"><input id="registerPassword" type="password" autocomplete="new-password" placeholder="••••••••"><button class="eyeReveal" type="button" data-target="registerPassword" aria-label="Show password">👁️</button></div>
     <div class="actions">
       <button class="primary" id="registerBtn" onclick="sendRegistrationOTP()">SEND EMAIL OTP</button>
     </div>
@@ -148,19 +147,20 @@ function setLandingTheme(theme){
 function applyLandingTheme(){
   const saved=localStorage.getItem("hours_landing_theme")||"system";
   document.documentElement.dataset.landingTheme=saved;
-  document.querySelectorAll(".themeBtn").forEach(b=>b.classList.toggle("active",b.dataset.theme===saved));
+  const select=$("#landingThemeSelect");if(select)select.value=saved;
 }
-function bindHoldReveal(){
-  document.querySelectorAll(".holdReveal").forEach(btn=>{
+function bindEyeReveal(){
+  document.querySelectorAll(".eyeReveal").forEach(btn=>{
     const input=()=>document.getElementById(btn.dataset.target);
-    const show=()=>{const el=input();if(el)el.type="text"};
-    const hide=()=>{const el=input();if(el)el.type="password"};
-    ["mousedown","touchstart","pointerdown"].forEach(ev=>btn.addEventListener(ev,e=>{e.preventDefault();show()}));
-    ["mouseup","mouseleave","touchend","touchcancel","pointerup","pointercancel"].forEach(ev=>btn.addEventListener(ev,hide));
+    btn.addEventListener("click",()=>{
+      const el=input();if(!el)return;
+      const showing=el.type==="text";el.type=showing?"password":"text";
+      btn.setAttribute("aria-label",showing?"Show password":"Hide password");
+    });
   });
 }
 applyLandingTheme();
-bindHoldReveal();
+bindEyeReveal();
 async function boot(){
   const hash=new URLSearchParams(location.hash.replace(/^#/,""));
   if(hash.get("type")==="recovery" && hash.get("access_token")){
