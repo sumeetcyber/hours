@@ -116,10 +116,12 @@ const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 function persist(){
   const snapshot=JSON.parse(JSON.stringify(state));
-  saveQueue=saveQueue.then(()=>fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(snapshot)})
-    .then(async r=>{if(r.status===401){location.replace("/landing.html");throw new Error("session expired")}if(!r.ok)throw new Error("save failed")})
-    .catch(e=>console.error(e)));
-  return saveQueue;
+  saveQueue=saveQueue.then(async()=>{
+    const r=await fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(snapshot),cache:"no-store"});
+    if(r.status===401){location.replace("/landing.html");throw new Error("session expired")}
+    if(!r.ok){let msg="save failed";try{const j=await r.json();msg=j.error||msg}catch{}throw new Error(msg)}
+  });
+  return saveQueue.catch(e=>{console.error(e);showToast(e.message||"Could not save changes.");throw e});
 }
 function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2)}
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
@@ -247,17 +249,22 @@ function sortedActivePursuits(){
 function archivedPursuits(){return state.pursuits.filter(p=>p.archived&&!p.deletedAt)}
 function recyclePursuits(){return state.pursuits.filter(p=>p.deletedAt)}
 function setPursuitSort(v){state.pursuitSort=v;persist();render()}
-function sendToRecycle(id){
+async function sendToRecycle(id){
  const p=pfind(id);if(!p)return;
  p.deletedAt=Date.now();p.archived=false;
  if(state.active?.pursuitId===id){state.active=null;clearInterval(timerInterval)}
- persist();closeModal();render();showToast("Moved to recycle bin. Auto-deletes in 14 days.");
+ try{await persist();closeModal();render();showToast("Moved to recycle bin. Auto-deletes in 14 days.")}catch{}
 }
-function restorePursuit(id){const p=pfind(id);if(!p)return;p.deletedAt=null;p.archived=false;persist();render();showToast("Pursuit restored.")}
-function deleteForever(id){
+async function restorePursuit(id){
+ const p=pfind(id);if(!p)return;
+ p.deletedAt=null;p.archived=false;
+ try{await persist();render();showToast("Pursuit restored.")}catch{}
+}
+async function deleteForever(id){
  const p=pfind(id);if(!p)return;
  if(!confirm(`Permanently delete \"${p.name}\" and all its logged time? This cannot be undone.`))return;
- state.entries=state.entries.filter(e=>e.pursuitId!==id);state.pursuits=state.pursuits.filter(x=>x.id!==id);persist();render();showToast("Pursuit permanently deleted.");
+ state.entries=state.entries.filter(e=>e.pursuitId!==id);state.pursuits=state.pursuits.filter(x=>x.id!==id);
+ try{await persist();render();showToast("Pursuit permanently deleted.")}catch{}
 }
 function archivePursuit(id){const p=pfind(id);if(!p)return;p.archived=true;p.deletedAt=null;persist();closeModal();render();showToast("Archived.")}
 function unarchivePursuit(id){const p=pfind(id);if(!p)return;p.archived=false;persist();render();showToast("Restored to pursuits.")}
@@ -297,7 +304,15 @@ function archivedPage(){
  <div class="sectionTitle">RECYCLE BIN · ${recycle.length}</div>
  <div class="grid">${recycle.map(p=>{const daysLeft=Math.max(0,14-Math.floor((Date.now()-p.deletedAt)/86400000));return `<article class="card pursuitCard" draggable="true" data-pursuit-id="${esc(p.id)}"><div class="row"><div><span class="dragHandle" title="Drag to reorder">⠿</span><h2 style="margin:0;display:inline">${esc(p.name)}</h2><div class="muted small">Deleted ${dateOnly(p.deletedAt)} · ${dateTime(p.deletedAt)}</div></div><span class="pill">${daysLeft}d LEFT</span></div><div class="hours">${human(total(p.id))}</div><div class="actions"><button class="primary" onclick="restorePursuit('${p.id}')">Restore</button><button class="danger" onclick="deleteForever('${p.id}')">Delete forever</button></div></article>`}).join("")||'<div class="card empty">Recycle bin is empty.</div>'}</div></section>`;
 }
-function emptyRecycleBin(){const recycle=recyclePursuits();if(!recycle.length)return; if(!confirm(`Permanently delete ${recycle.length} pursuit${recycle.length===1?"":"s"} and all their logged time? This cannot be undone.`))return;const ids=new Set(recycle.map(p=>p.id));state.entries=state.entries.filter(e=>!ids.has(e.pursuitId));state.pursuits=state.pursuits.filter(p=>!ids.has(p.id));persist();render();showToast("Recycle bin emptied.")}
+async function emptyRecycleBin(){
+ const recycle=recyclePursuits();
+ if(!recycle.length)return;
+ if(!confirm(`Permanently delete ${recycle.length} pursuit${recycle.length===1?"":"s"} and all their logged time? This cannot be undone.`))return;
+ const ids=new Set(recycle.map(p=>p.id));
+ state.entries=state.entries.filter(e=>!ids.has(e.pursuitId));
+ state.pursuits=state.pursuits.filter(p=>!ids.has(p.id));
+ try{await persist();render();showToast("Recycle bin emptied.")}catch{}
+}
 function pCard(p){
  const t=total(p.id), target=p.target||0, pct=target?Math.min(100,t/(target*3600)*100):0;
  return `<article class="card pursuitCard" draggable="true" data-pursuit-id="${esc(p.id)}"><div class="row"><div><span class="dragHandle" title="Drag to reorder">⠿</span><h2 style="margin:0;display:inline">${esc(p.name)}</h2><div class="muted small">${p.categories.length} categor${p.categories.length===1?"y":"ies"}</div></div>${target&&t>=target*3600?'<span class="pill done">COMPLETED</span>':''}</div>
