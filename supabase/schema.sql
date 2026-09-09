@@ -24,3 +24,13 @@ begin
     alter publication supabase_realtime add table public.user_state;
   end if;
 end $$;
+
+create table if not exists public.guest_state (
+  guest_id uuid primary key,
+  state jsonb not null default '{"pursuits":[],"entries":[],"active":null,"theme":"system","wishfulDefault":8}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.guest_state enable row level security;
+
+revoke all on public.guest_state from anon, authenticated;
