@@ -87,19 +87,35 @@ label{display:block;color:var(--muted);font-size:12px;margin:12px 0 5px}
 </style>
 
 <style id="online-auth-css">
-#authGate{position:fixed;inset:0;z-index:9999;background:var(--bg,#f7f7f5);color:var(--text,#111);display:grid;place-items:center;padding:24px}.authBox{width:min(430px,100%);background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:18px;padding:28px;box-shadow:0 20px 70px #0001}.authBox h1{margin:0 0 6px;font-size:36px;letter-spacing:-2px}.authBox p{color:var(--muted,#777);font-size:14px}.authBox label{display:block;margin:16px 0 6px;font-size:12px}.authBox input{width:100%;box-sizing:border-box}.authBox .authError{color:#b42318;font-size:13px;min-height:18px;margin-top:10px}.authStatus{font-size:12px;color:var(--muted,#777);margin-top:12px}.serverBadge{font-size:11px;color:var(--muted,#777);margin-left:8px}
+#authGate{position:fixed;inset:0;z-index:9999;background:var(--bg,#f7f7f5);color:var(--text,#111);display:grid;place-items:center;padding:24px}.authBox{width:min(430px,100%);background:var(--surface,#fff);border:1px solid var(--border,#ddd);border-radius:18px;padding:28px;box-shadow:0 20px 70px #0001}.authBox h1{margin:0 0 6px;font-size:36px;letter-spacing:-2px}.authBox p{color:var(--muted,#777);font-size:14px}.authBox label{display:block;margin:16px 0 6px;font-size:12px}.authBox input{width:100%;box-sizing:border-box}.authBox .authError{color:#b42318;font-size:13px;min-height:18px;margin-top:10px}.authStatus{font-size:12px;color:var(--muted,#777);margin-top:12px}.serverBadge{font-size:11px;color:var(--muted,#777);margin-left:8px}.authActions{display:grid;gap:8px;margin-top:14px}.authDivider{display:flex;align-items:center;gap:10px;margin:18px 0;color:var(--muted,#777);font-size:11px}.authDivider:before,.authDivider:after{content:"";height:1px;background:var(--border,#ddd);flex:1}.spinner{width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;vertical-align:-4px;animation:spin .7s linear infinite;margin-right:8px}@keyframes spin{to{transform:rotate(360deg)}}.authBusy{display:none;text-align:center;margin-top:14px;color:var(--muted,#777)}
 </style>
 </head>
 <body>
 <div id="authGate"><div class="authBox">
-  <h1>hours.</h1><p>Log what you actually did. Your data syncs to your account.</p>
-  <div id="authStepEmail">
+  <h1>hours.</h1>
+  <p id="authIntro">Log what you actually did. Your data lives on the server.</p>
+  <div id="authAccount">
     <label>Email</label>
     <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
-    <button class="primary" style="margin-top:14px;width:100%" onclick="requestMagicLink()">EMAIL ME A LOGIN LINK</button>
+    <label>Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" placeholder="Optional password">
+    <div class="authActions">
+      <button class="primary" id="passwordBtn" onclick="signInPassword()">SIGN IN WITH PASSWORD</button>
+      <button class="ghost" onclick="resetPassword()">RESET PASSWORD</button>
+    </div>
+    <div class="authDivider"><span>OR</span></div>
+    <button class="primary" id="otpBtn" onclick="requestOTP()">SEND OTP</button>
+    <div id="authStepOTP" style="display:none">
+      <label>OTP</label>
+      <input id="authOTP" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="12345678">
+      <button class="primary" style="margin-top:10px;width:100%" onclick="verifyOTP()">VERIFY & ENTER</button>
+      <button class="ghost" style="margin-top:8px;width:100%" onclick="backToEmail()">Use another email</button>
+    </div>
   </div>
+  <div class="authActions"><button class="ghost" onclick="useGuest()">USE WITHOUT AN ACCOUNT</button></div>
+  <div class="authBusy" id="authBusy"><span class="spinner"></span><span id="authBusyText">Working…</span></div>
   <div class="authError" id="authError"></div>
-  <div class="authStatus" id="authStatus">Server-authenticated · no local data store</div>
+  <div class="authStatus" id="authStatus">Server-stored data · account optional</div>
 </div></div>
 
 <div class="app">
@@ -126,7 +142,11 @@ let currentPage="hours", timerInterval=null, saveQueue=Promise.resolve();
 const $=s=>document.querySelector(s);
 const $$=s=>[...document.querySelectorAll(s)];
 function persist(){
-  return Promise.resolve();
+  const snapshot=JSON.parse(JSON.stringify(state));
+  saveQueue=saveQueue.then(()=>fetch("/api/state",{method:"PUT",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify(snapshot)})
+    .then(async r=>{if(r.status===401){showAuth();throw new Error("session expired")}if(!r.ok)throw new Error("save failed")})
+    .catch(e=>console.error(e)));
+  return saveQueue;
 }
 function uid(){return crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random().toString(16).slice(2)}
 function esc(v){return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
@@ -144,73 +164,125 @@ $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeModal()})
 
 $$(".nav button").forEach(b=>b.onclick=()=>{currentPage=b.dataset.page;render()});
 
-async function requestMagicLink(){
+function setAuthBusy(busy,text="Working…"){
+  const box=$("#authBusy");
+  box.style.display=busy?"block":"none";
+  $("#authBusyText").textContent=text;
+  $("#otpBtn").disabled=busy;
+  $("#passwordBtn").disabled=busy;
+}
+async function requestOTP(){
   const email=$("#authEmail").value.trim().toLowerCase();
   $("#authError").textContent="";
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    $("#authError").textContent="Enter a valid email address.";
-    return;
-  }
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ $("#authError").textContent="Enter a valid email address."; return; }
+  setAuthBusy(true,"Sending OTP…");
   try{
-    const r=await fetch("/api/auth/send-magic-link",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({email})
-    });
+    const r=await fetch("/api/auth/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
     const j=await r.json();
-    if(!r.ok)throw new Error(j.error||"Could not send login link");
-    $("#authStatus").textContent="Login link sent. Check your email.";
-  }catch(e){
-    $("#authError").textContent=e.message;
-  }
+    if(!r.ok)throw new Error(j.error||"Could not send OTP");
+    $("#authStepOTP").style.display="block";
+    $("#authStatus").textContent="OTP sent. Enter the code from your email.";
+    $("#authOTP").focus();
+  }catch(e){$("#authError").textContent=e.message}
+  finally{setAuthBusy(false)}
 }
-async function finishMagicLink(){
-  const hash=new URLSearchParams(location.hash.replace(/^#/,""));
-  const access_token=hash.get("access_token");
-  const refresh_token=hash.get("refresh_token");
-  if(!access_token||!refresh_token)return false;
-  $("#authStatus").textContent="Signing you in…";
+async function verifyOTP(){
+  const email=$("#authEmail").value.trim().toLowerCase(),token=$("#authOTP").value.trim();
+  $("#authError").textContent="";
+  if(!/^\d{8}$/.test(token)){ $("#authError").textContent="Enter the 8-digit OTP."; return; }
+  setAuthBusy(true,"Verifying OTP…");
   try{
-    const r=await fetch("/api/auth/session",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      credentials:"include",
-      body:JSON.stringify({access_token,refresh_token})
-    });
+    const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,token})});
     const j=await r.json();
-    if(!r.ok)throw new Error(j.error||"Could not complete sign-in");
-    history.replaceState(null,"",location.pathname+location.search);
-    return true;
-  }catch(e){
-    history.replaceState(null,"",location.pathname+location.search);
-    $("#authError").textContent=e.message;
-    return false;
-  }
+    if(!r.ok)throw new Error(j.error||"Invalid OTP");
+    await boot();
+  }catch(e){$("#authError").textContent=e.message}
+  finally{setAuthBusy(false)}
+}
+async function signInPassword(){
+  const email=$("#authEmail").value.trim().toLowerCase(),password=$("#authPassword").value;
+  $("#authError").textContent="";
+  if(!email||!password){$("#authError").textContent="Enter your email and password.";return}
+  setAuthBusy(true,"Signing you in…");
+  try{
+    const r=await fetch("/api/auth/password",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,password})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"Could not sign in");
+    await boot();
+  }catch(e){$("#authError").textContent=e.message}
+  finally{setAuthBusy(false)}
+}
+async function resetPassword(){
+  const email=$("#authEmail").value.trim().toLowerCase();
+  $("#authError").textContent="";
+  if(!email){$("#authError").textContent="Enter your email first.";return}
+  setAuthBusy(true,"Sending reset email…");
+  try{
+    const r=await fetch("/api/auth/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"Could not send reset email");
+    $("#authStatus").textContent="Password reset email sent.";
+  }catch(e){$("#authError").textContent=e.message}
+  finally{setAuthBusy(false)}
+}
+function backToEmail(){$("#authStepOTP").style.display="none";$("#authStatus").textContent="Server-stored data · account optional"}
+async function useGuest(){
+  $("#authError").textContent="";
+  setAuthBusy(true,"Starting guest account…");
+  try{
+    const r=await fetch("/api/guest?create=1",{credentials:"include"});
+    const j=await r.json();
+    if(!r.ok)throw new Error(j.error||"Could not start guest mode");
+    state=j.state||defaultState();
+    window.__hoursGuest=true;
+    hideAuth();render();connectRealtime();
+  }catch(e){$("#authError").textContent=e.message}
+  finally{setAuthBusy(false)}
 }
 function showAuth(){$("#authGate").style.display="grid";$(".app").style.display="none"}
 function hideAuth(){$("#authGate").style.display="none";$(".app").style.display=""}
 async function boot(){
   try{
-    await finishMagicLink();
     const r=await fetch("/api/auth/me",{credentials:"include"});
-    if(!r.ok){showAuth();return}
-    const st=await fetch("/api/state",{credentials:"include"});
-    if(!st.ok)throw new Error("state unavailable");
-    state=await st.json();
-    hideAuth();render();connectRealtime();
-  }catch(e){
-    console.error(e);
-    showAuth();
-    $("#authError").textContent="Could not connect to the server.";
-  }
+    if(r.ok){
+      const me=await r.json();
+      window.__hoursGuest=false;
+      window.__hoursEmail=me.user?.email||"";
+      const st=await fetch("/api/state",{credentials:"include"});
+      if(!st.ok)throw new Error("state unavailable");
+      state=await st.json();hideAuth();render();connectRealtime();return;
+    }
+    const g=await fetch("/api/guest",{credentials:"include"});
+    if(!g.ok)throw new Error("guest unavailable");
+    const gj=await g.json();
+    window.__hoursGuest=true;
+    state=gj.state||defaultState();hideAuth();render();connectRealtime();
+  }catch(e){console.error(e);showAuth();$("#authError").textContent="Could not connect to the server."}
 }
 function connectRealtime(){
   if(window.__hoursEvents)window.__hoursEvents.close();
-  const es=new EventSource("/api/events"); window.__hoursEvents=es;
+  const es=new EventSource("/api/events");window.__hoursEvents=es;
   es.addEventListener("state",async()=>{const r=await fetch("/api/state",{credentials:"include"});if(r.ok){state=await r.json();render()}});
   es.onerror=()=>{};
 }
-
+async function finishRecovery(){
+  const hash=new URLSearchParams(location.hash.replace(/^#/,""));
+  if(hash.get("type")!=="recovery")return false;
+  const accessToken=hash.get("access_token");
+  if(!accessToken)return false;
+  openModal('<h2>Set new password</h2><label>New password</label><input id="newPassword" type="password" autocomplete="new-password"><div class="actions"><button class="primary" onclick="saveRecoveryPassword()">SET PASSWORD</button></div>');
+  window.__recoveryToken=accessToken;
+  history.replaceState(null,"",location.pathname+location.search);
+  return true;
+}
+async function saveRecoveryPassword(){
+  const password=$("#newPassword").value;
+  if(password.length<8)return showToast("Password must be at least 8 characters.");
+  const r=await fetch("/api/auth/reset-password/complete",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({access_token:window.__recoveryToken,password})});
+  const j=await r.json();
+  if(!r.ok)return showToast(j.error||"Could not set password.");
+  window.__recoveryToken=null;closeModal();showToast("Password updated.");await boot();
+}
 function applyTheme(){
   let t=state.theme;
   if(t==="system")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";
@@ -384,26 +456,46 @@ function analyticsPage(){
 }
 function settingsPage(){
  return `<section><div class="sub">SETTINGS</div><h1>Keep it simple.</h1><div class="grid" style="margin-top:22px">
- <div class="card"><h2>Theme</h2><label>Appearance</label><select id="theme" onchange="setTheme(this.value)"><option value="system" ${state.theme==="system"?"selected":""}>System</option><option value="light" ${state.theme==="light"?"selected":""}>Light</option><option value="dark" ${state.theme==="dark"?"selected":""}>Dark</option><option value="paper" ${state.theme==="paper"?"selected":""}>Paper</option><option value="midnight" ${state.theme==="midnight"?"selected":""}>Midnight</option></select><p class="muted small">Themes apply to the whole app. No half-dark broken controls.</p></div>
+ <div class="card"><h2>Account</h2><p class="muted">${window.__hoursGuest?"You are using HOURS without an account. Your data is server-stored behind this browser's guest cookie.":"Signed in. Your HOURS data is tied to your account."}</p>${window.__hoursGuest?'<div class="actions"><button class="primary" onclick="claimGuest()">CREATE / SIGN IN TO SYNC THIS DATA</button></div>':'<label>New password</label><input id="accountPassword" type="password" autocomplete="new-password" placeholder="At least 8 characters"><div class="actions"><button class="ghost" onclick="setAccountPassword()">SET PASSWORD</button><button class="ghost" onclick="resetCurrentPassword()">RESET PASSWORD</button><button class="ghost" onclick="signOut()">SIGN OUT</button></div><div class="actions"><button class="danger" onclick="deleteAccount()">PERMANENTLY DELETE ACCOUNT</button></div>'}</div>
+ <div class="card"><h2>Theme</h2><label>Appearance</label><select id="theme" onchange="setTheme(this.value)"><option value="system" ${state.theme==="system"?"selected":""}>System</option><option value="light" ${state.theme==="light"?"selected":""}>Light</option><option value="dark" ${state.theme==="dark"?"selected":""}>Dark</option><option value="paper" ${state.theme==="paper"?"selected":""}>Paper</option><option value="midnight" ${state.theme==="midnight"?"selected":""}>Midnight</option></select></div>
  <div class="card"><h2>Wishful average</h2><label>Default hours/day for new pursuits</label><input id="wd" type="number" min="0" step=".1" value="${state.wishfulDefault}"><div class="actions"><button class="primary" onclick="saveWishful()">Save</button></div></div>
- <div class="card"><h2>Data</h2><p class="muted">V1 is local. Your data lives in this browser/device.</p><div class="actions"><button class="primary" onclick="exportCSV()">Export CSV</button><button class="ghost" onclick="importJSON()">Import backup</button><button class="danger" onclick="wipe()">Delete everything</button></div></div>
- <div class="card"><h2>What counts?</h2><p class="quote">Don't track every minute of your phone. Track things you're deliberately trying to become good at.</p><p class="muted">Skills like study, business, diet, singing or dancing can count when they're genuinely part of what you're trying to improve.</p><p class="muted">Life admin, doomscrolling, porn, daydreaming, wantrepreneurship and generic life-hack consumption don't become productive just because a timer was running.</p></div>
- <div class="card"><h2>The rule</h2><p class="quote"><b>There is one ultra-common variable: time.</b></p><p class="muted">If you want to level up, increase the intentional hours. If you don't want to level up in something, decrease them.</p><p class="muted">No blind discipline. No mandatory daily quotas. Life never stops. Life is never linear.</p></div>
+ <div class="card"><h2>Data</h2><p class="muted">All persistent data is server-side. CSV is the portable format.</p><div class="actions"><button class="primary" onclick="exportCSV()">Export CSV</button><button class="ghost" onclick="importCSV()">Import CSV</button><button class="danger" onclick="wipe()">Delete all data</button></div></div>
+ <div class="card"><h2>What counts?</h2><p class="quote">Don't track every minute of your phone. Track things you're deliberately trying to become good at.</p><p class="muted">Skills like study, business, diet, singing or dancing can count when they're genuinely part of what you're trying to improve.</p></div>
  </div></section>`;
 }
+function claimGuest(){openModal('<h2>Sync guest data</h2><p class="muted">Enter an email and verify an OTP. Your guest data will be moved into the account.</p><label>Email</label><input id="claimEmail" type="email" placeholder="you@example.com"><div class="actions"><button class="primary" onclick="sendClaimOTP()">SEND OTP</button></div><div id="claimOTPBox"></div>')}
+async function sendClaimOTP(){const email=$("#claimEmail").value.trim().toLowerCase();if(!email)return showToast("Email required.");const r=await fetch("/api/auth/send-otp",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not send OTP");$("#claimOTPBox").innerHTML='<label>8-digit OTP</label><input id="claimOTP" inputmode="numeric" maxlength="8"><div class="actions"><button class="primary" onclick="verifyClaimOTP()">VERIFY & SYNC</button></div>';}
+async function verifyClaimOTP(){const email=$("#claimEmail").value.trim().toLowerCase(),token=$("#claimOTP").value.trim();const r=await fetch("/api/auth/verify-otp",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({email,token})});const j=await r.json();if(!r.ok)return showToast(j.error||"Invalid OTP");window.__hoursGuest=false;closeModal();await boot();showToast("Guest data synced to your account.")}
+async function setAccountPassword(){const password=$("#accountPassword").value;if(password.length<8)return showToast("Password must be at least 8 characters.");const r=await fetch("/api/auth/set-password",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",body:JSON.stringify({password})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not set password");showToast("Password set.")}
+async function resetCurrentPassword(){const email=window.__hoursEmail||"";if(!email)return showToast("Account email unavailable.");const r=await fetch("/api/auth/reset-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not send reset email");showToast("Password reset email sent.")}
+async function signOut(){await fetch("/api/auth/signout",{method:"POST",credentials:"include"});window.__hoursGuest=false;showAuth();$("#authError").textContent="";$("#authStatus").textContent="Signed out."}
+async function deleteAccount(){if(!confirm("Permanently delete your account and all HOURS data? This cannot be undone."))return;const r=await fetch("/api/auth/delete-account",{method:"DELETE",credentials:"include"});const j=await r.json();if(!r.ok)return showToast(j.error||"Could not delete account");if(window.__hoursEvents)window.__hoursEvents.close();state=defaultState();window.__hoursGuest=false;showAuth();showToast("Account permanently deleted.")}
 function setTheme(v){state.theme=v;persist();applyTheme();render()}
 function saveWishful(){state.wishfulDefault=Math.max(0,+$("#wd").value||0);persist();showToast("Saved.")}
 function exportCSV(){
- const rows=[["date","pursuit","category","start","end","duration_minutes","note","entry_type"],...state.entries.map(e=>[new Date(e.start).toISOString(),pfind(e.pursuitId)?.name||"",cfind(e.pursuitId,e.categoryId)?.name||"General",new Date(e.start).toISOString(),new Date(e.end).toISOString(),Math.round(e.duration/60),e.note||"",e.entryType])];
+ const rows=[["date","pursuit","category","start","end","duration_minutes","note","entry_type"],...state.entries.map(e=>[new Date(e.start).toISOString(),pfind(e.pursuitId)?.name||"",cfind(e.pursuitId,e.categoryId)?.name||"General",new Date(e.start).toISOString(),new Date(e.end).toISOString(),Math.round(e.duration/60),e.note||"",e.entryType||"manual"])];
  const csv=rows.map(r=>r.map(x=>`"${String(x).replaceAll('"','""')}"`).join(",")).join("\n");
  downloadBlob(csv,"hours-export.csv","text/csv");
 }
-function importJSON(){const input=document.createElement("input");input.type="file";input.accept=".json";input.onchange=async()=>{const f=input.files[0];if(!f)return;try{const x=JSON.parse(await f.text());if(!x.pursuits||!x.entries)throw 0;state=x;persist();render();showToast("Backup imported.")}catch{showToast("Invalid backup.")}};input.click()}
+function parseCSV(text){
+ const rows=[];let row=[],cell="",quote=false;
+ for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'){if(quote&&n==='"'){cell+='"';i++}else quote=!quote}else if(c===','&&!quote){row.push(cell);cell=""}else if((c==='\n'||c==='\r')&&!quote){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(x=>x!==""))rows.push(row);row=[];cell=""}else cell+=c}if(cell!==""||row.length){row.push(cell);if(row.some(x=>x!==""))rows.push(row)}return rows;
+}
+function importCSV(){
+ const input=document.createElement("input");input.type="file";input.accept=".csv,text/csv";
+ input.onchange=async()=>{const f=input.files[0];if(!f)return;try{const rows=parseCSV(await f.text());if(rows.length<2)throw new Error("empty");const h=rows[0].map(x=>x.trim().toLowerCase());const idx=x=>h.indexOf(x);if(idx("pursuit")<0||idx("start")<0||idx("duration_minutes")<0)throw new Error("columns");
+ openModal(`<h2>Import CSV</h2><p class="muted">${rows.length-1} entries found.</p><div class="actions"><button class="primary" onclick="finishImportCSV(window.__importRows,'add')">ADD TO CURRENT DATA</button><button class="ghost" onclick="finishImportCSV(window.__importRows,'replace')">REPLACE EVERYTHING</button></div>`);window.__importRows={rows,h};}catch{showToast("Invalid CSV export.")}};input.click();
+}
+function finishImportCSV(payload,mode){
+ const {rows,h}=payload,idx=x=>h.indexOf(x),nextState=mode==="replace"?defaultState():JSON.parse(JSON.stringify(state)),pMap=new Map(nextState.pursuits.map(p=>[p.name.toLowerCase(),p]));
+ for(let i=1;i<rows.length;i++){const r=rows[i],pname=r[idx("pursuit")]||"Imported",cname=r[idx("category")]||"General",pkey=pname.toLowerCase();let p=pMap.get(pkey);if(!p){p={id:uid(),name:pname,description:"",target:0,wishful:nextState.wishfulDefault||8,categories:[],archived:false,createdAt:Date.now()};nextState.pursuits.push(p);pMap.set(pkey,p)}let c=null;if(cname&&cname!=="General"){c=p.categories.find(x=>x.name.toLowerCase()===cname.toLowerCase());if(!c){c={id:uid(),name:cname,target:0,archived:false,createdAt:Date.now()};p.categories.push(c)}}const start=Date.parse(r[idx("start")]||r[idx("date")]);const mins=Number(r[idx("duration_minutes")]);if(!Number.isFinite(start)||!Number.isFinite(mins)||mins<=0)continue;nextState.entries.push({id:uid(),pursuitId:p.id,categoryId:c?.id||null,start,end:start+mins*60000,duration:mins*60,note:r[idx("note")]||"",entryType:r[idx("entry_type")]||"manual"})}
+ state=nextState;persist();closeModal();render();showToast(mode==="add"?"CSV added.":"CSV imported as replacement.");
+}
 function downloadBlob(data,name,type){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function wipe(){if(confirm("Delete ALL hours, pursuits and categories? This cannot be undone.")){state=defaultState();persist();render();showToast("Everything deleted.")}}
+function wipe(){if(confirm("Delete ALL logged data, pursuits and categories? This cannot be undone.")){state=defaultState();persist();render();showToast("Everything deleted.")}}
 function bindPage(){}
 
-boot();
+finishRecovery().then(()=>boot());
 </script>
 
 <script>
