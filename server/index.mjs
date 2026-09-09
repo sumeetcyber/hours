@@ -187,6 +187,38 @@ async function mergeGuestIntoAccount(userId, guestId) {
   await admin.from('guest_state').delete().eq('guest_id', guestId);
 }
 
+app.post('/api/auth/register/send-otp', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid email' });
+  if (password.length < 8) return res.status(400).json({ error: 'password must be at least 8 characters' });
+  const existing = await admin.auth.admin.getUserByEmail(email);
+  if (existing.data?.user) return res.status(409).json({ error: 'an account with this email already exists' });
+  const r = await auth.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  if (r.error) return res.status(400).json({ error: r.error.message });
+  res.json({ ok: true });
+});
+
+app.post('/api/auth/register/verify-otp', async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const token = String(req.body.token || '').trim();
+  const password = String(req.body.password || '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{8}$/.test(token) || password.length < 8) {
+    return res.status(400).json({ error: 'invalid registration details' });
+  }
+  const existing = await admin.auth.admin.getUserByEmail(email);
+  if (existing.data?.user) return res.status(409).json({ error: 'an account with this email already exists' });
+  const r = await auth.auth.verifyOtp({ email, token, type: 'email' });
+  if (r.error || !r.data.user) return res.status(401).json({ error: r.error?.message || 'invalid code' });
+  const userId = r.data.user.id;
+  const updated = await admin.auth.admin.updateUserById(userId, { password, email_confirm: true });
+  if (updated.error) return res.status(400).json({ error: updated.error.message });
+  try { await mergeGuestIntoAccount(userId, req.cookies.hours_guest); } catch { return res.status(500).json({ error: 'could not sync guest data' }); }
+  clearSession(res);
+  clearGuestCookie(res);
+  res.json({ ok: true });
+});
+
 app.post('/api/auth/send-otp', async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid email' });
