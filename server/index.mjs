@@ -64,7 +64,7 @@ function newGuestId() {
 }
 
 function defaultState() {
-  return { pursuits: [], entries: [], active: null, theme: 'system', wishfulDefault: 8, pursuitSort: 'custom', timeZone: '', timeFormat: '12h' };
+  return { pursuits: [], entries: [], active: null, theme: 'system', wishfulDefault: 8, pursuitSort: 'custom', timeZone: '', timeFormat: '12h', weekendMode: false, dateFormat: 'windows-short', titleCaseTasks: false };
 }
 
 function sanitizeState(s) {
@@ -77,7 +77,10 @@ function sanitizeState(s) {
     wishfulDefault: Number(s.wishfulDefault || 0),
     pursuitSort: ['custom', 'az', 'za'].includes(s.pursuitSort) ? s.pursuitSort : 'custom',
     timeZone: typeof s.timeZone === 'string' ? s.timeZone : '',
-    timeFormat: s.timeFormat === '24h' ? '24h' : '12h'
+    timeFormat: s.timeFormat === '24h' ? '24h' : '12h',
+    weekendMode: !!s.weekendMode,
+    dateFormat: ['windows-short','dd/MM/yyyy','MM/dd/yyyy','yyyy-MM-dd','dddd, d MMMM yyyy'].includes(s.dateFormat) ? s.dateFormat : 'windows-short',
+    titleCaseTasks: !!s.titleCaseTasks
   };
 }
 
