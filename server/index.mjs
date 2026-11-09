@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
@@ -18,10 +19,19 @@ if (!URL || !ANON || !SERVICE) throw new Error('Missing Supabase environment var
 const admin = createClient(URL, SERVICE, { auth: { autoRefreshToken: false, persistSession: false } });
 const auth = createClient(URL, ANON, { auth: { autoRefreshToken: false, persistSession: false } });
 
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false }));
+
+// Apply rate limits to sensitive authentication endpoints only.
+// Static files, normal app usage, state sync, and SSE connections are not globally throttled.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 function setSession(res, session) {
   res.cookie('hours_access', session.access_token, {
@@ -196,7 +206,7 @@ async function mergeGuestIntoAccount(userId, guestId) {
   await admin.from('guest_state').delete().eq('guest_id', guestId);
 }
 
-app.post('/api/auth/register/send-otp', async (req, res) => {
+app.post('/api/auth/register/send-otp', authLimiter, async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'invalid email' });
@@ -207,7 +217,7 @@ app.post('/api/auth/register/send-otp', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/auth/register/verify-otp', async (req, res) => {
+app.post('/api/auth/register/verify-otp', authLimiter, async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const token = String(req.body.token || '').trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !/^\d{8}$/.test(token)) {
@@ -223,7 +233,7 @@ app.post('/api/auth/register/verify-otp', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/auth/password', async (req, res) => {
+app.post('/api/auth/password', authLimiter, async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const password = String(req.body.password || '');
   if (!email || !password) return res.status(400).json({ error: 'email and password required' });
@@ -235,7 +245,7 @@ app.post('/api/auth/password', async (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/auth/reset-password', async (req, res) => {
+app.post('/api/auth/reset-password', authLimiter, async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   if (!email) return res.status(400).json({ error: 'email required' });
   const r = await auth.auth.resetPasswordForEmail(email, { redirectTo: `${APP_URL}/` });
